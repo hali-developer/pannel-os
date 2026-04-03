@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+
+{% block title %}FTP Management - Admin{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h2 style="margin: 0; color: var(--accent);">FTP Management</h2>
+        <p class="text-muted" style="margin: 0;">Handle vsftpd Users</p>
+    </div>
+    <div>
+        <a href="{{ url_for('admin') }}" class="btn" style="background: transparent; border: 1px solid var(--glass-border); margin-right: 0.5rem;">Back to Admin</a>
+        <a href="{{ url_for('logout') }}" class="btn" style="background: transparent; border: 1px solid var(--glass-border);">Logout</a>
+    </div>
+</div>
+
+<div class="glass-card" style="margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 style="margin: 0;">Create FTP User</h3>
+        <form action="{{ url_for('admin_ftp') }}" method="POST" style="margin: 0;">
+            <input type="hidden" name="action" value="sync_os">
+            <button type="submit" class="btn" style="background: rgba(139,92,246,0.3); border: 1px solid var(--accent); padding: 0.5rem 1rem; font-size: 0.9rem;">Sync Existing OS Users 🔄</button>
+        </form>
+    </div>
+    {% if message %}
+    <div style="background: rgba(139,92,246,0.2); border: 1px solid var(--accent); padding: 1rem; border-radius: 8px; margin-bottom: 1rem;">
+        {{ message }}
+    </div>
+    {% endif %}
+    <form action="{{ url_for('admin_ftp') }}" method="POST" style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 1rem; align-items: end;">
+        <input type="hidden" name="action" value="create">
+        <div>
+            <label for="domain_name">Domain Name</label>
+            <input type="text" id="domain_name" name="domain_name" placeholder="e.g. site.com" style="margin-bottom: 0;" required>
+        </div>
+        <div>
+            <label for="new_username">Username</label>
+            <input type="text" id="new_username" name="new_username" placeholder="e.g. client1" style="margin-bottom: 0;" required>
+        </div>
+        <div>
+            <label for="new_password">Password</label>
+            <input type="password" id="new_password" name="new_password" placeholder="e.g. SecureP@ss" style="margin-bottom: 0;" required>
+        </div>
+        <button type="submit" class="btn">Create</button>
+    </form>
+</div>
+
+<div class="glass-card">
+    <h3>FTP Accounts</h3>
+    <table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+        <thead style="border-bottom: 1px solid var(--glass-border);">
+            <tr>
+                <th style="text-align: left; padding: 1rem; color: var(--text-muted);">Username</th>
+                <th style="text-align: left; padding: 1rem; color: var(--text-muted);">Domain Binding</th>
+                <th style="text-align: right; padding: 1rem; color: var(--text-muted);">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td style="padding: 1rem; font-weight: 600;">{{ u.username }}</td>
+                <td style="padding: 1rem;">{{ u.domain_name }}</td>
+                <td style="padding: 1rem; text-align: right; display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    
+                    <form action="{{ url_for('admin_ftp') }}" method="POST" style="margin:0;">
+                        <input type="hidden" name="action" value="update_pwd">
+                        <input type="hidden" name="target_username" value="{{ u.username }}">
+                        <input type="password" name="new_password" placeholder="New Pass" required style="padding: 0.5rem; margin-right: 0.5rem; width: 100px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: white; border-radius: 4px;">
+                        <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.8rem;">Set Pwd</button>
+                    </form>
+                    
+                    <form action="{{ url_for('admin_ftp') }}" method="POST" style="margin:0;">
+                        <input type="hidden" name="action" value="update_domain">
+                        <input type="hidden" name="target_username" value="{{ u.username }}">
+                        <input type="text" name="new_domain" value="{{ u.domain_name }}" required style="padding: 0.5rem; margin-right: 0.5rem; width: 120px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: white; border-radius: 4px;">
+                        <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.8rem;">Set Domain</button>
+                    </form>
+
+                    <form action="{{ url_for('admin_ftp') }}" method="POST" style="margin:0;">
+                        <input type="hidden" name="action" value="delete">
+                        <input type="hidden" name="target_username" value="{{ u.username }}">
+                        <button class="btn" style="padding: 0.5rem 1rem; font-size: 0.8rem; background: var(--danger);">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="3" style="padding: 1rem; text-align: center; color: var(--text-muted);">No FTP users found. Create one above!</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

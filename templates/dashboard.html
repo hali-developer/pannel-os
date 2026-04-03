@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - VPS Panel{% endblock %}
+
+{% block content %}
+<div class="glass-card" style="margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h2 style="margin: 0;">Welcome, {{ username }}</h2>
+        <p class="text-muted" style="margin: 0;">Client Account Dashboard</p>
+    </div>
+    <a href="{{ url_for('logout') }}" class="btn" style="background: transparent; border: 1px solid var(--glass-border);">Logout</a>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+    <!-- FTP Info Card -->
+    <div class="glass-card">
+        <h3>📂 FTP Access</h3>
+        <p class="text-muted" style="margin-bottom: 1.5rem;">Manage your files via vsftpd</p>
+        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; color: var(--success); margin-bottom: 1rem;">
+            Host: ftp.{{ domain }}<br>
+            User: {{ username }}<br>
+            Port: 21
+        </div>
+        <button class="btn btn-full" style="background: var(--glass-bg); border: 1px solid var(--glass-border);">Reset FTP Password</button>
+    </div>
+
+    <!-- Database Info Card -->
+    <div class="glass-card">
+        <h3>🗄️ Database Access</h3>
+        <p class="text-muted" style="margin-bottom: 1.5rem;">Manage your MySQL databases</p>
+        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; color: var(--accent); margin-bottom: 1rem;">
+            Host: localhost<br>
+            DB Name: {{ db_name }}<br>
+            User: {{ db_user }}
+        </div>
+        <a href="/phpmyadmin" target="_blank" class="btn btn-full">Open phpMyAdmin ↗</a>
+    </div>
+</div>
+{% endblock %}
