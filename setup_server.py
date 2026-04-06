@@ -45,9 +45,9 @@ def main():
     # ── Step 1: System Packages ──
     print("\n[1/7] Installing system packages...")
     run("apt update -y")
-    run("apt install -y nginx mysql-server postgresql postgresql-contrib "
-        "vsftpd php-fpm php-mysql phpmyadmin python3-pip python3-venv "
-        "certbot python3-certbot-nginx")
+    run("apt install -y apache2 mysql-server postgresql postgresql-contrib "
+        "vsftpd libapache2-mod-php php-mysql phpmyadmin python3-pip python3-venv "
+        "certbot python3-certbot-apache")
     print("  ✅ System packages installed.")
 
     # ── Step 2: PostgreSQL Setup ──
@@ -144,8 +144,8 @@ MYSQL_ADMIN_PASSWORD={mysql_admin_pass}
 FTP_METHOD=vsftpd
 FTP_USER_CONF_DIR=/etc/vsftpd_user_conf
 
-NGINX_SITES_AVAILABLE=/etc/nginx/sites-available
-NGINX_SITES_ENABLED=/etc/nginx/sites-enabled
+APACHE_SITES_AVAILABLE=/etc/apache2/sites-available
+APACHE_SITES_ENABLED=/etc/apache2/sites-enabled
 
 WEB_ROOT=/var/www
 
@@ -178,32 +178,34 @@ PANEL_VERSION=2.0.0
     run(f"cd {panel_dir} && {python_path} -c \"from app import create_app; create_app()\"")
     print("  ✅ Database tables created.")
 
-    # ── Nginx Panel Config ──
-    panel_nginx = f"""server {{
-    listen 8080;
-    server_name _;
+    # ── Apache Panel Config ──
+    print("\n[8/7] Configuring Apache proxy...")
+    run("a2enmod proxy proxy_http headers rewrite")
+    
+    panel_apache = f"""<VirtualHost *:8080>
+    ServerName _
+    
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:5000/
+    ProxyPassReverse / http://127.0.0.1:5000/
 
-    location / {{
-        proxy_pass http://127.0.0.1:5000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }}
+    Alias /static {panel_dir}/static
+    <Directory {panel_dir}/static>
+        Require all granted
+    </Directory>
 
-    location /static {{
-        alias {panel_dir}/static;
-    }}
-}}
+    ErrorLog ${{APACHE_LOG_DIR}}/panel_error.log
+    CustomLog ${{APACHE_LOG_DIR}}/panel_access.log combined
+</VirtualHost>
+
+Listen 8080
 """
-    with open('/etc/nginx/sites-available/vps-panel', 'w') as f:
-        f.write(panel_nginx)
+    with open('/etc/apache2/sites-available/vps-panel.conf', 'w') as f:
+        f.write(panel_apache)
 
-    if not os.path.exists('/etc/nginx/sites-enabled/vps-panel'):
-        os.symlink('/etc/nginx/sites-available/vps-panel', '/etc/nginx/sites-enabled/vps-panel')
-
-    run("nginx -t", check=False)
-    run("systemctl reload nginx", check=False)
+    run("a2ensite vps-panel.conf", check=False)
+    run("apache2ctl configtest", check=False)
+    run("systemctl restart apache2", check=False)
 
     print("\n" + "=" * 60)
     print("  ✅ VPS Panel setup complete!")
