@@ -59,6 +59,9 @@ def main():
     run(f'sudo -u postgres psql -c "CREATE USER {pg_user} WITH PASSWORD \'{pg_pass}\';"', check=False)
     run(f'sudo -u postgres psql -c "CREATE DATABASE {pg_db} OWNER {pg_user};"', check=False)
     run(f'sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE {pg_db} TO {pg_user};"', check=False)
+    # PostgreSQL 15+ requires explicit schema permissions
+    run(f'sudo -u postgres psql -d {pg_db} -c "GRANT ALL ON SCHEMA public TO {pg_user};"', check=False)
+    run(f'sudo -u postgres psql -d {pg_db} -c "ALTER SCHEMA public OWNER TO {pg_user};"', check=False)
     print("  ✅ PostgreSQL configured.")
 
     # ── Step 3: MySQL Setup ──
