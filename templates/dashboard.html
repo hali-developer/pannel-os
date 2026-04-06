@@ -11,29 +11,56 @@
     <a href="{{ url_for('logout') }}" class="btn" style="background: transparent; border: 1px solid var(--glass-border);">Logout</a>
 </div>
 
+{% if message %}
+<div class="glass-card" style="margin-bottom: 2rem; background: rgba(50, 205, 50, 0.1); border-color: var(--success); color: var(--success);">
+    {{ message }}
+</div>
+{% endif %}
+
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
-    <!-- FTP Info Card -->
+    <!-- DB Creation Card -->
     <div class="glass-card">
-        <h3>📂 FTP Access</h3>
-        <p class="text-muted" style="margin-bottom: 1.5rem;">Manage your files via vsftpd</p>
-        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; color: var(--success); margin-bottom: 1rem;">
-            Host: ftp.{{ domain }}<br>
-            User: {{ username }}<br>
-            Port: 21
-        </div>
-        <button class="btn btn-full" style="background: var(--glass-bg); border: 1px solid var(--glass-border);">Reset FTP Password</button>
+        <h3>➕ Create Database</h3>
+        <p class="text-muted" style="margin-bottom: 1.5rem;">Create a new isolated MySQL DB</p>
+        <form method="POST" action="/dashboard">
+            <input type="hidden" name="action" value="create_db">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary);">Database Name</label>
+                <input type="text" name="db_name" class="input-field" placeholder="{{ username }}_wp" required>
+            </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary);">DB User</label>
+                <input type="text" name="db_user" class="input-field" placeholder="{{ username }}_usr" required>
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: var(--text-secondary);">Password</label>
+                <input type="password" name="new_password" class="input-field" required>
+            </div>
+            <button type="submit" class="btn btn-full">Provision Database</button>
+        </form>
     </div>
 
-    <!-- Database Info Card -->
+    <!-- Active Databases -->
     <div class="glass-card">
-        <h3>🗄️ Database Access</h3>
-        <p class="text-muted" style="margin-bottom: 1.5rem;">Manage your MySQL databases</p>
-        <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; color: var(--accent); margin-bottom: 1rem;">
-            Host: localhost<br>
-            DB Name: {{ db_name }}<br>
-            User: {{ db_user }}
-        </div>
-        <a href="/phpmyadmin" target="_blank" class="btn btn-full">Open phpMyAdmin ↗</a>
+        <h3>🗄️ Active Databases</h3>
+        <p class="text-muted" style="margin-bottom: 1.5rem;">Manage your MySQL instances</p>
+        
+        {% if dbs %}
+            {% for db in dbs %}
+            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 8px; font-family: monospace; color: var(--accent); margin-bottom: 1rem;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span><strong>DB:</strong> {{ db.db_name }}</span>
+                    <a href="/phpmyadmin" target="_blank" style="color: var(--primary); text-decoration: none;">➜ Login</a>
+                </div>
+                <div><strong>User:</strong> {{ db.db_user }}</div>
+                <div style="font-size: 0.8rem; color: #888;">Host: localhost</div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="color: #666; font-style: italic;">No databases created yet.</p>
+        {% endif %}
+        
+        <a href="/phpmyadmin" target="_blank" class="btn btn-full" style="margin-top: 1rem; background: var(--glass-bg); border: 1px solid var(--glass-border);">Open phpMyAdmin Hub ↗</a>
     </div>
 </div>
 {% endblock %}
