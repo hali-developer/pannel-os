@@ -11,27 +11,20 @@ load_dotenv()
 class BaseConfig:
     """Base configuration shared across all environments."""
 
-    # Flask Core
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-fallback-secret-key-change-in-production')
+    # Panel Database (Using MySQL for all data)
+    PANEL_DB_HOST = os.environ.get('PANEL_DB_HOST', 'localhost')
+    PANEL_DB_PORT = int(os.environ.get('PANEL_DB_PORT', 3306))
+    PANEL_DB_USER = os.environ.get('PANEL_DB_USER', 'pannel_user')
+    PANEL_DB_PASSWORD = os.environ.get('PANEL_DB_PASSWORD', 'StrongPanelPass123!')
+    PANEL_DB_NAME = os.environ.get('PANEL_DB_NAME', 'pannel_db')
+    PANEL_DB_SOCKET = os.environ.get('PANEL_DB_SOCKET', '/var/run/mysqld/mysqld.sock')
 
-    # JWT
-    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'dev-jwt-secret-change-in-production')
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
-    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
-    JWT_TOKEN_LOCATION = ['headers', 'cookies']
-    JWT_COOKIE_SECURE = False  # Set True in production with HTTPS
-
-    # PostgreSQL (Panel Data)
-    POSTGRES_HOST = os.environ.get('POSTGRES_HOST', 'localhost')
-    POSTGRES_PORT = os.environ.get('POSTGRES_PORT', '5432')
-    POSTGRES_USER = os.environ.get('POSTGRES_USER', 'pannel_user')
-    POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', 'StrongPanelPass123!')
-    POSTGRES_DB = os.environ.get('POSTGRES_DB', 'pannel_db')
-
-    SQLALCHEMY_DATABASE_URI = (
-        f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}"
-        f"@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
-    )
+    # Construct MySQL URI
+    _db_uri = f"mysql+pymysql://{PANEL_DB_USER}:{PANEL_DB_PASSWORD}@{PANEL_DB_HOST}:{PANEL_DB_PORT}/{PANEL_DB_NAME}"
+    if PANEL_DB_HOST in ('localhost', '127.0.0.1') and os.path.exists(PANEL_DB_SOCKET):
+        _db_uri += f"?unix_socket={PANEL_DB_SOCKET}"
+    
+    SQLALCHEMY_DATABASE_URI = _db_uri
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
