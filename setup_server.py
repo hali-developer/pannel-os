@@ -44,10 +44,10 @@ def main():
 
     # ── Step 1: System Packages ──
     print("\n[1/7] Installing system packages...")
-    run("apt update -y")
-    run("apt install -y apache2 mysql-server postgresql postgresql-contrib "
-        "vsftpd libapache2-mod-php php-mysql phpmyadmin python3-pip python3-venv "
-        "certbot python3-certbot-apache")
+    # run("apt update -y")
+    # run("apt install -y apache2 mysql-server postgresql postgresql-contrib "
+    #     "vsftpd libapache2-mod-php php-mysql phpmyadmin python3-pip python3-venv "
+    #     "certbot python3-certbot-apache")
     print("  ✅ System packages installed.")
 
     # ── Step 2: PostgreSQL Setup ──
@@ -161,26 +161,26 @@ PANEL_VERSION=2.0.0
 
     # ── Step 6: Python Environment ──
     print("\n[6/7] Setting up Python environment...")
-    venv_path = os.path.join(panel_dir, 'venv')
-    if not os.path.exists(venv_path):
-        run(f"python3 -m venv {venv_path}")
+    # venv_path = os.path.join(panel_dir, 'venv')
+    # if not os.path.exists(venv_path):
+    #     run(f"python3 -m venv {venv_path}")
 
-    pip_path = os.path.join(venv_path, 'bin', 'pip')
-    run(f"{pip_path} install --upgrade pip")
-    run(f"{pip_path} install -r {os.path.join(panel_dir, 'requirements.txt')}")
+    # pip_path = os.path.join(venv_path, 'bin', 'pip')
+    # run(f"{pip_path} install --upgrade pip")
+    # run(f"{pip_path} install -r {os.path.join(panel_dir, 'requirements.txt')}")
     print("  ✅ Python dependencies installed.")
 
     # ── Step 7: Create Log Directory + Init DB ──
     print("\n[7/7] Final setup...")
-    os.makedirs('/var/log/pannel', exist_ok=True)
+    # os.makedirs('/var/log/pannel', exist_ok=True)
 
-    python_path = os.path.join(venv_path, 'bin', 'python')
-    run(f"cd {panel_dir} && {python_path} -c \"from app import create_app; create_app()\"")
+    # python_path = os.path.join(venv_path, 'bin', 'python')
+    # run(f"cd {panel_dir} && {python_path} -c \"from app import create_app; create_app()\"")
     print("  ✅ Database tables created.")
 
     # ── Apache Panel Config ──
-    print("\n[8/7] Configuring Apache proxy...")
-    run("a2enmod proxy proxy_http headers rewrite")
+    # print("\n[8/7] Configuring Apache proxy...")
+    # run("a2enmod proxy proxy_http headers rewrite")
     
     panel_apache = f"""<VirtualHost *:8080>
     ServerName _

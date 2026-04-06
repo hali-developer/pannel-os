@@ -18,12 +18,35 @@ class MySQLService:
     @staticmethod
     def _get_admin_connection(database: str = None) -> pymysql.Connection:
         """Get a connection using the panel's MySQL admin credentials."""
+        # Preparation
+        host = current_app.config['MYSQL_HOST']
+        user = current_app.config['MYSQL_ADMIN_USER']
+        password = current_app.config['MYSQL_ADMIN_PASSWORD']
+        port = current_app.config['MYSQL_PORT']
+        unix_socket = current_app.config.get('MYSQL_UNIX_SOCKET', '/var/run/mysqld/mysqld.sock')
+
         try:
+            # If host is localhost, try connecting via UNIX socket first for better reliability on Linux
+            if host in ('localhost', '127.0.0.1') and os.path.exists(unix_socket):
+                try:
+                    return pymysql.connect(
+                        user=user,
+                        password=password,
+                        unix_socket=unix_socket,
+                        database=database,
+                        charset='utf8mb4',
+                        cursorclass=pymysql.cursors.DictCursor,
+                        connect_timeout=5,
+                    )
+                except pymysql.Error as socket_e:
+                    logger.warning(f"MySQL socket connection failed ({unix_socket}), falling back to TCP: {socket_e}")
+
+            # TCP fallback or non-local host
             return pymysql.connect(
-                host=current_app.config['MYSQL_HOST'],
-                port=current_app.config['MYSQL_PORT'],
-                user=current_app.config['MYSQL_ADMIN_USER'],
-                password=current_app.config['MYSQL_ADMIN_PASSWORD'],
+                host=host,
+                port=port,
+                user=user,
+                password=password,
                 database=database,
                 charset='utf8mb4',
                 cursorclass=pymysql.cursors.DictCursor,
@@ -31,7 +54,7 @@ class MySQLService:
             )
         except pymysql.Error as e:
             logger.error(f"MySQL connection failed: {e}")
-            raise ConnectionError(f"Cannot connect to MySQL: {e}")
+            raise ConnectionError(f"Cannot connect to MySQL admin after multiple attempts: {e}")
 
     @classmethod
     def create_database(cls, db_name: str) -> tuple[bool, str]:

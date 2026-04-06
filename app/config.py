@@ -40,19 +40,19 @@ class BaseConfig:
         'max_overflow': 20,
     }
 
+    # Apache
+    APACHE_SITES_AVAILABLE = os.environ.get('APACHE_SITES_AVAILABLE', '/etc/apache2/sites-available')
+    APACHE_SITES_ENABLED = os.environ.get('APACHE_SITES_ENABLED', '/etc/apache2/sites-enabled')
+
+    # Web Root
+    WEB_ROOT = os.environ.get('WEB_ROOT', '/var/www')
+
     # MySQL/MariaDB (Client Databases)
     MYSQL_HOST = os.environ.get('MYSQL_HOST', 'localhost')
     MYSQL_PORT = int(os.environ.get('MYSQL_PORT', 3306))
+    MYSQL_UNIX_SOCKET = os.environ.get('MYSQL_UNIX_SOCKET', '/var/run/mysqld/mysqld.sock')
     MYSQL_ADMIN_USER = os.environ.get('MYSQL_ADMIN_USER', 'pannel_admin')
     MYSQL_ADMIN_PASSWORD = os.environ.get('MYSQL_ADMIN_PASSWORD', 'StrongMySQLPass123!')
-
-    # FTP
-    FTP_METHOD = os.environ.get('FTP_METHOD', 'vsftpd')
-    FTP_USER_CONF_DIR = os.environ.get('FTP_USER_CONF_DIR', '/etc/vsftpd_user_conf')
-
-    # Nginx
-    NGINX_SITES_AVAILABLE = os.environ.get('NGINX_SITES_AVAILABLE', '/etc/nginx/sites-available')
-    NGINX_SITES_ENABLED = os.environ.get('NGINX_SITES_ENABLED', '/etc/nginx/sites-enabled')
 
     # Web Root
     WEB_ROOT = os.environ.get('WEB_ROOT', '/var/www')
