@@ -83,8 +83,8 @@ class DevelopmentConfig(BaseConfig):
 class ProductionConfig(BaseConfig):
     """Production configuration."""
     DEBUG = False
-    JWT_COOKIE_SECURE = True
-    SESSION_COOKIE_SECURE = True
+    JWT_COOKIE_SECURE = False  # Set to True only when using HTTPS
+    SESSION_COOKIE_SECURE = False  # Set to True only when using HTTPS
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
 
