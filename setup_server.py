@@ -75,10 +75,10 @@ GRANT ALL PRIVILEGES ON {pannel_db}.* TO '{pannel_user}'@'localhost';
 FLUSH PRIVILEGES;
 """
     
-    cmd = ['mysql', '-u', 'root', '-p', 'mysql']
+    cmd = ['mysql', '-u', 'root']
     if mysql_root_pass:
         # Note: In MySQL 8.0+, some environments might need a space or specific flags
-        cmd.append(f'{mysql_root_pass}')
+        cmd.append(f'-p{mysql_root_pass}')
     cmd.extend(['-e', mysql_cmds])
 
     try:
