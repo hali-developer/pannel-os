@@ -96,8 +96,10 @@ class DBManager:
             return False, "Failed to connect to MySQL", None, None
 
         # Sanitize names loosely (prevent extreme characters)
-        if not db_name.isalnum() and "_" not in db_name:
+        if not db_name.replace('_', '').isalnum():
              return False, "Invalid DB name format", None, None
+        if not db_user.replace('_', '').isalnum():
+             return False, "Invalid DB user format", None, None
         
         try:
             with conn.cursor() as cursor:
@@ -106,22 +108,20 @@ class DBManager:
                 
                 # 2. Setup user explicitly on localhost ONLY (no remote %)
                 host = 'localhost'
+                safe_pwd = conn.escape_string(password)
+                
+                # It is safer and more reliable to format DDL explicitly.
+                try:
+                    # Try default modern MYSQL syntax
+                    cursor.execute(f"CREATE USER IF NOT EXISTS '{db_user}'@'{host}' IDENTIFIED BY '{safe_pwd}';")
+                except Exception as e:
+                    # Fallback for strict native password plugins
+                    cursor.execute(f"CREATE USER IF NOT EXISTS '{db_user}'@'{host}' IDENTIFIED WITH mysql_native_password BY '{safe_pwd}';")
                 
                 try:
-                    cursor.execute(f"CREATE USER IF NOT EXISTS '{db_user}'@'{host}' IDENTIFIED WITH mysql_native_password BY %s;", (password,))
+                    cursor.execute(f"ALTER USER '{db_user}'@'{host}' IDENTIFIED BY '{safe_pwd}';")
                 except Exception:
-                    try:
-                        cursor.execute(f"CREATE USER IF NOT EXISTS '{db_user}'@'{host}' IDENTIFIED BY %s;", (password,))
-                    except Exception:
-                        pass
-                
-                try:
-                    cursor.execute(f"ALTER USER '{db_user}'@'{host}' IDENTIFIED WITH mysql_native_password BY %s;", (password,))
-                except Exception:
-                    try:
-                        cursor.execute(f"ALTER USER '{db_user}'@'{host}' IDENTIFIED BY %s;", (password,))
-                    except Exception:
-                        pass
+                    cursor.execute(f"ALTER USER '{db_user}'@'{host}' IDENTIFIED WITH mysql_native_password BY '{safe_pwd}';")
                     
                 # 3. Explicit isolation scope
                 cursor.execute(f"GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{db_user}'@'{host}';")
@@ -185,12 +185,18 @@ class DBManager:
         try:
             with conn.cursor() as cursor:
                 host = 'localhost'
+                safe_pwd = conn.escape_string(password)
+                
                 try:
-                    cursor.execute(f"CREATE USER IF NOT EXISTS '{db_user}'@'{host}' IDENTIFIED WITH mysql_native_password BY %s;", (password,))
-                    cursor.execute(f"ALTER USER '{db_user}'@'{host}' IDENTIFIED WITH mysql_native_password BY %s;", (password,))
+                    cursor.execute(f"CREATE USER IF NOT EXISTS '{db_user}'@'{host}' IDENTIFIED BY '{safe_pwd}';")
                 except Exception:
-                    cursor.execute(f"CREATE USER IF NOT EXISTS '{db_user}'@'{host}' IDENTIFIED BY %s;", (password,))
-                    cursor.execute(f"ALTER USER '{db_user}'@'{host}' IDENTIFIED BY %s;", (password,))
+                    cursor.execute(f"CREATE USER IF NOT EXISTS '{db_user}'@'{host}' IDENTIFIED WITH mysql_native_password BY '{safe_pwd}';")
+                    
+                try:
+                    cursor.execute(f"ALTER USER '{db_user}'@'{host}' IDENTIFIED BY '{safe_pwd}';")
+                except Exception:
+                    cursor.execute(f"ALTER USER '{db_user}'@'{host}' IDENTIFIED WITH mysql_native_password BY '{safe_pwd}';")
+                    
                 cursor.execute(f"GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{db_user}'@'{host}';")
                 cursor.execute("FLUSH PRIVILEGES;")
             conn.commit()

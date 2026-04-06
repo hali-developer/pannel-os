@@ -1,0 +1,93 @@
+{# ─── Panel Layout: Sidebar + Topbar + Content ─── #}
+{% extends 'base.html' %}
+
+{% block layout %}
+<!-- Sidebar Overlay (Mobile) -->
+<div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="brand-icon">
+            <i class="bi bi-hdd-rack-fill" style="color:white;"></i>
+        </div>
+        <div>
+            <h5>VPS Panel</h5>
+            <small>{{ session.get('role', 'user') | upper }} MODE</small>
+        </div>
+    </div>
+
+    <nav class="sidebar-nav">
+        {% if session.get('role') == 'admin' %}
+        <div class="nav-section">Overview</div>
+        <a href="{{ url_for('users.admin_dashboard') }}" class="nav-link">
+            <i class="bi bi-grid-1x2"></i> Dashboard
+        </a>
+
+        <div class="nav-section">Management</div>
+        <a href="{{ url_for('users.admin_users_page') }}" class="nav-link">
+            <i class="bi bi-people"></i> Users
+        </a>
+        <a href="{{ url_for('ftp.admin_ftp_page') }}" class="nav-link">
+            <i class="bi bi-folder2-open"></i> FTP Accounts
+        </a>
+        <a href="{{ url_for('database.admin_databases_page') }}" class="nav-link">
+            <i class="bi bi-database"></i> Databases
+        </a>
+        <a href="{{ url_for('domains.admin_domains_page') }}" class="nav-link">
+            <i class="bi bi-globe2"></i> Domains
+        </a>
+
+        <div class="nav-section">Monitoring</div>
+        <a href="{{ url_for('users.admin_activity_log') }}" class="nav-link">
+            <i class="bi bi-clock-history"></i> Activity Log
+        </a>
+        {% else %}
+        <div class="nav-section">My Account</div>
+        <a href="{{ url_for('users.client_dashboard') }}" class="nav-link">
+            <i class="bi bi-grid-1x2"></i> Dashboard
+        </a>
+        {% endif %}
+    </nav>
+
+    <div class="sidebar-footer">
+        <div class="sidebar-user">
+            <div class="user-avatar">
+                {{ session.get('username', 'U')[0] | upper }}
+            </div>
+            <div class="user-info">
+                <div class="user-name">{{ session.get('username', 'User') }}</div>
+                <div class="user-role">{{ session.get('role', 'user') }}</div>
+            </div>
+            <a href="{{ url_for('auth.logout') }}" title="Logout"
+               style="color:var(--text-dim);font-size:1.1rem;transition:color 0.15s;">
+                <i class="bi bi-box-arrow-right"></i>
+            </a>
+        </div>
+    </div>
+</aside>
+
+<!-- Main Content -->
+<div class="main-content">
+    <!-- Topbar -->
+    <header class="topbar">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+            <button class="btn-sidebar-toggle" id="sidebarToggle">
+                <i class="bi bi-list"></i>
+            </button>
+            <div class="page-title">{% block page_title %}Dashboard{% endblock %}</div>
+        </div>
+        <div class="topbar-actions">
+            {% block topbar_actions %}{% endblock %}
+            <a href="{{ url_for('auth.logout') }}" class="btn-panel btn-ghost btn-sm-panel">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </a>
+        </div>
+    </header>
+
+    <!-- Content Area -->
+    <div class="content-area">
+        {% block content %}{% endblock %}
+    </div>
+</div>
+{% endblock %}

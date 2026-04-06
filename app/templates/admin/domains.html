@@ -1,0 +1,124 @@
+{% extends 'panel_layout.html' %}
+
+{% block title %}Domain Management — VPS Panel{% endblock %}
+{% block page_title %}Domains <span>/ Management</span>{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    <!-- Add Domain -->
+    <div class="col-xl-4">
+        <div class="panel-card">
+            <div class="card-header">
+                <h5><i class="bi bi-globe"></i> Add Domain</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('domains.admin_add_domain') }}" method="POST" autocomplete="off">
+                    <div class="mb-3">
+                        <label class="form-label">Assign to User</label>
+                        <select class="form-select" name="user_id" required>
+                            <option value="">Select user...</option>
+                            {% for u in users %}
+                            <option value="{{ u.id }}">{{ u.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Domain Name</label>
+                        <input type="text" class="form-control" name="domain_name" placeholder="e.g. example.com" required>
+                        <small style="color:var(--text-dim);font-size:0.72rem;">
+                            Points to /var/www/{username}/public_html
+                        </small>
+                    </div>
+                    <button type="submit" class="btn-panel btn-success-panel w-100">
+                        <i class="bi bi-plus-lg"></i> Add Domain
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Info Card -->
+        <div class="panel-card mt-3">
+            <div class="card-body">
+                <h6 style="font-size:0.85rem;margin-bottom:0.75rem;"><i class="bi bi-info-circle" style="color:var(--accent-blue);"></i> How It Works</h6>
+                <ul style="font-size:0.78rem;color:var(--text-secondary);padding-left:1.2rem;margin:0;line-height:1.8;">
+                    <li>Generates Nginx server block automatically</li>
+                    <li>Writes to <code style="font-size:0.72rem;">/etc/nginx/sites-available/</code></li>
+                    <li>Creates symlink in <code style="font-size:0.72rem;">sites-enabled/</code></li>
+                    <li>Tests config with <code style="font-size:0.72rem;">nginx -t</code></li>
+                    <li>Reloads Nginx gracefully</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Domains Table -->
+    <div class="col-xl-8">
+        <div class="panel-card">
+            <div class="card-header">
+                <h5><i class="bi bi-globe2"></i> Active Domains</h5>
+                <span class="badge-panel badge-active">{{ domains | length }} total</span>
+            </div>
+            <div class="card-body" style="padding:0;">
+                {% if domains %}
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Domain</th>
+                                <th>Owner</th>
+                                <th>Document Root</th>
+                                <th>SSL</th>
+                                <th>Created</th>
+                                <th class="actions-cell">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for domain in domains %}
+                            <tr>
+                                <td>
+                                    <div style="display:flex;align-items:center;gap:0.5rem;">
+                                        <i class="bi bi-globe" style="color:var(--accent-green);"></i>
+                                        <a href="http://{{ domain.domain_name }}" target="_blank"
+                                           style="color:var(--text-primary);text-decoration:none;font-weight:600;">
+                                            {{ domain.domain_name }}
+                                        </a>
+                                    </div>
+                                </td>
+                                <td>{{ domain.owner.username if domain.owner else '—' }}</td>
+                                <td>
+                                    <code style="font-size:0.72rem;color:var(--accent-cyan);background:rgba(6,182,212,0.1);padding:0.15rem 0.4rem;border-radius:4px;">
+                                        {{ domain.document_root }}
+                                    </code>
+                                </td>
+                                <td>
+                                    {% if domain.ssl_enabled %}
+                                        <span class="badge-panel badge-active"><i class="bi bi-lock-fill"></i> SSL</span>
+                                    {% else %}
+                                        <span class="badge-panel badge-inactive">No SSL</span>
+                                    {% endif %}
+                                </td>
+                                <td style="font-size:0.78rem;">{{ domain.created_at.strftime('%b %d, %Y') if domain.created_at else '—' }}</td>
+                                <td class="actions-cell">
+                                    <form action="{{ url_for('domains.admin_remove_domain', domain_name=domain.domain_name) }}" method="POST">
+                                        <button type="submit" class="btn-panel btn-danger-panel btn-sm-panel"
+                                                data-confirm="Remove domain '{{ domain.domain_name }}'? Nginx config will be deleted." title="Remove">
+                                            <i class="bi bi-trash3"></i> Remove
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-globe2"></i>
+                    <p>No domains configured. Add one using the form.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

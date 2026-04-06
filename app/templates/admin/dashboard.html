@@ -1,0 +1,103 @@
+{% extends 'panel_layout.html' %}
+
+{% block title %}Admin Dashboard — VPS Panel{% endblock %}
+{% block page_title %}Dashboard <span>/ Overview</span>{% endblock %}
+
+{% block content %}
+<!-- Stats Row -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card purple">
+            <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+            <div class="stat-value">{{ stats.total_clients }}</div>
+            <div class="stat-label">Client Accounts</div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card green">
+            <div class="stat-icon"><i class="bi bi-globe2"></i></div>
+            <div class="stat-value">{{ stats.total_domains }}</div>
+            <div class="stat-label">Active Domains</div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card blue">
+            <div class="stat-icon"><i class="bi bi-database-fill"></i></div>
+            <div class="stat-value">{{ stats.total_databases }}</div>
+            <div class="stat-label">MySQL Databases</div>
+        </div>
+    </div>
+    <div class="col-md-6 col-xl-3">
+        <div class="stat-card amber">
+            <div class="stat-icon"><i class="bi bi-folder2-open"></i></div>
+            <div class="stat-value">{{ stats.total_ftp_accounts }}</div>
+            <div class="stat-label">FTP Accounts</div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions + Recent Activity -->
+<div class="row g-3">
+    <!-- Quick Actions -->
+    <div class="col-lg-5">
+        <div class="panel-card">
+            <div class="card-header">
+                <h5><i class="bi bi-lightning-charge-fill"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('users.admin_users_page') }}" class="btn-panel btn-ghost" style="justify-content:flex-start;">
+                        <i class="bi bi-person-plus"></i> Manage Users
+                    </a>
+                    <a href="{{ url_for('ftp.admin_ftp_page') }}" class="btn-panel btn-ghost" style="justify-content:flex-start;">
+                        <i class="bi bi-folder-plus"></i> Manage FTP Accounts
+                    </a>
+                    <a href="{{ url_for('database.admin_databases_page') }}" class="btn-panel btn-ghost" style="justify-content:flex-start;">
+                        <i class="bi bi-database-add"></i> Manage Databases
+                    </a>
+                    <a href="{{ url_for('domains.admin_domains_page') }}" class="btn-panel btn-ghost" style="justify-content:flex-start;">
+                        <i class="bi bi-globe"></i> Manage Domains
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="col-lg-7">
+        <div class="panel-card">
+            <div class="card-header">
+                <h5><i class="bi bi-clock-history"></i> Recent Activity</h5>
+                <a href="{{ url_for('users.admin_activity_log') }}" class="btn-panel btn-ghost btn-sm-panel">
+                    View All <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+            <div class="card-body" style="padding:1rem 1.5rem;">
+                {% if recent_logs %}
+                    {% for log in recent_logs %}
+                    <div class="activity-item">
+                        <div class="activity-dot {% if 'login' in log.action %}login{% elif 'delete' in log.action %}delete{% elif 'create' in log.action %}create{% elif 'logout' in log.action %}logout{% else %}default{% endif %}"></div>
+                        <div class="activity-info">
+                            <div class="activity-action">
+                                <strong>{{ log.actor.username if log.actor else 'System' }}</strong>
+                                — {{ log.action | replace('_', ' ') | title }}
+                                {% if log.details %}<span style="color:var(--text-dim);">{{ log.details[:60] }}</span>{% endif %}
+                            </div>
+                            <div class="activity-time">
+                                {{ log.created_at.strftime('%b %d, %H:%M') if log.created_at else '' }}
+                                {% if log.ip_address %}&bull; {{ log.ip_address }}{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="bi bi-clock"></i>
+                        <p>No activity recorded yet.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

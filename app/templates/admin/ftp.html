@@ -1,0 +1,109 @@
+{% extends 'panel_layout.html' %}
+
+{% block title %}FTP Management — VPS Panel{% endblock %}
+{% block page_title %}FTP <span>/ Accounts</span>{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    <!-- Create FTP Account -->
+    <div class="col-xl-4">
+        <div class="panel-card">
+            <div class="card-header">
+                <h5><i class="bi bi-folder-plus"></i> Create FTP Account</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('ftp.admin_create_ftp') }}" method="POST" autocomplete="off">
+                    <div class="mb-3">
+                        <label class="form-label">Assign to User</label>
+                        <select class="form-select" name="user_id" required>
+                            <option value="">Select user...</option>
+                            {% for u in users %}
+                            <option value="{{ u.id }}">{{ u.username }} ({{ u.role }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">FTP Username</label>
+                        <input type="text" class="form-control" name="ftp_username" placeholder="e.g. ftp_john" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-control" name="password" placeholder="Min 8 characters" required minlength="8">
+                    </div>
+                    <button type="submit" class="btn-panel btn-primary-panel w-100">
+                        <i class="bi bi-plus-lg"></i> Create FTP Account
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- FTP Accounts Table -->
+    <div class="col-xl-8">
+        <div class="panel-card">
+            <div class="card-header">
+                <h5><i class="bi bi-folder2-open"></i> FTP Accounts</h5>
+                <span class="badge-panel badge-client">{{ accounts | length }} total</span>
+            </div>
+            <div class="card-body" style="padding:0;">
+                {% if accounts %}
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>FTP Username</th>
+                                <th>Owner</th>
+                                <th>Home Directory</th>
+                                <th>Status</th>
+                                <th class="actions-cell">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for acct in accounts %}
+                            <tr>
+                                <td>
+                                    <i class="bi bi-person-badge" style="color:var(--accent-amber);margin-right:0.35rem;"></i>
+                                    {{ acct.ftp_username }}
+                                </td>
+                                <td>{{ acct.owner.username if acct.owner else '—' }}</td>
+                                <td>
+                                    <code style="font-size:0.75rem;color:var(--accent-cyan);background:rgba(6,182,212,0.1);padding:0.15rem 0.4rem;border-radius:4px;">
+                                        {{ acct.home_directory }}
+                                    </code>
+                                </td>
+                                <td><span class="badge-panel {% if acct.is_active %}badge-active{% else %}badge-inactive{% endif %}">{{ 'Active' if acct.is_active else 'Inactive' }}</span></td>
+                                <td class="actions-cell">
+                                    <div style="display:flex;gap:0.35rem;justify-content:flex-end;align-items:center;">
+                                        <!-- Change Password -->
+                                        <form action="{{ url_for('ftp.admin_change_ftp_password', ftp_username=acct.ftp_username) }}" method="POST" style="display:flex;gap:0.25rem;">
+                                            <input type="password" name="password" placeholder="New pwd" required minlength="8"
+                                                   style="width:90px;padding:0.3rem 0.5rem;font-size:0.75rem;background:rgba(0,0,0,0.25);border:1px solid var(--border-default);color:var(--text-primary);border-radius:4px;">
+                                            <button type="submit" class="btn-panel btn-ghost btn-sm-panel" title="Change Password">
+                                                <i class="bi bi-key"></i>
+                                            </button>
+                                        </form>
+                                        <!-- Delete -->
+                                        <form action="{{ url_for('ftp.admin_delete_ftp', ftp_username=acct.ftp_username) }}" method="POST">
+                                            <button type="submit" class="btn-panel btn-danger-panel btn-sm-panel"
+                                                    data-confirm="Delete FTP account '{{ acct.ftp_username }}'?" title="Delete">
+                                                <i class="bi bi-trash3"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-folder2-open"></i>
+                    <p>No FTP accounts. Create one using the form.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

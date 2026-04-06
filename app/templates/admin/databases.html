@@ -1,0 +1,114 @@
+{% extends 'panel_layout.html' %}
+
+{% block title %}Database Management — VPS Panel{% endblock %}
+{% block page_title %}Databases <span>/ MySQL</span>{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    <!-- Create Database -->
+    <div class="col-xl-4">
+        <div class="panel-card">
+            <div class="card-header">
+                <h5><i class="bi bi-database-add"></i> Create Database</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('database.admin_create_database') }}" method="POST" autocomplete="off">
+                    <div class="mb-3">
+                        <label class="form-label">Assign to User</label>
+                        <select class="form-select" name="user_id" required>
+                            <option value="">Select user...</option>
+                            {% for u in users %}
+                            <option value="{{ u.id }}">{{ u.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Database Name</label>
+                        <input type="text" class="form-control" name="db_name" placeholder="e.g. john_wordpress" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">DB Username</label>
+                        <input type="text" class="form-control" name="db_user" placeholder="e.g. john_wp_user" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">DB Password</label>
+                        <input type="password" class="form-control" name="password" placeholder="Min 8 characters" required minlength="8">
+                    </div>
+                    <button type="submit" class="btn-panel btn-success-panel w-100">
+                        <i class="bi bi-plus-lg"></i> Provision Database
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- phpMyAdmin Link -->
+        <div class="panel-card mt-3">
+            <div class="card-body" style="text-align:center;">
+                <i class="bi bi-box-arrow-up-right" style="font-size:1.5rem;color:var(--accent-amber);"></i>
+                <p style="margin:0.75rem 0 0.5rem;font-size:0.85rem;color:var(--text-secondary);">
+                    Access phpMyAdmin to manage databases directly.
+                </p>
+                <a href="/phpmyadmin" target="_blank" class="btn-panel btn-ghost w-100">
+                    <i class="bi bi-database-gear"></i> Open phpMyAdmin
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Databases Table -->
+    <div class="col-xl-8">
+        <div class="panel-card">
+            <div class="card-header">
+                <h5><i class="bi bi-database-fill"></i> Active Databases</h5>
+                <span class="badge-panel badge-active">{{ databases | length }} total</span>
+            </div>
+            <div class="card-body" style="padding:0;">
+                {% if databases %}
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Database</th>
+                                <th>DB User</th>
+                                <th>Owner</th>
+                                <th>Host</th>
+                                <th>Created</th>
+                                <th class="actions-cell">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for db in databases %}
+                            <tr>
+                                <td>
+                                    <code style="color:var(--accent-green);background:var(--accent-green-soft);padding:0.15rem 0.5rem;border-radius:4px;font-size:0.8rem;">
+                                        {{ db.db_name }}
+                                    </code>
+                                </td>
+                                <td style="font-size:0.82rem;">{{ db.db_user }}</td>
+                                <td>{{ db.owner.username if db.owner else '—' }}</td>
+                                <td style="font-size:0.78rem;color:var(--text-dim);">{{ db.db_host }}</td>
+                                <td style="font-size:0.78rem;">{{ db.created_at.strftime('%b %d, %Y') if db.created_at else '—' }}</td>
+                                <td class="actions-cell">
+                                    <form action="{{ url_for('database.admin_delete_database', db_name=db.db_name) }}" method="POST">
+                                        <button type="submit" class="btn-panel btn-danger-panel btn-sm-panel"
+                                                data-confirm="Drop database '{{ db.db_name }}' and user '{{ db.db_user }}'? This is permanent!" title="Delete">
+                                            <i class="bi bi-trash3"></i> Drop
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-database"></i>
+                    <p>No databases provisioned yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

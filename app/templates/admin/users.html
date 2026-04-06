@@ -1,0 +1,125 @@
+{% extends 'panel_layout.html' %}
+
+{% block title %}User Management — VPS Panel{% endblock %}
+{% block page_title %}Users <span>/ Management</span>{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    <!-- Create User Form -->
+    <div class="col-xl-4">
+        <div class="panel-card">
+            <div class="card-header">
+                <h5><i class="bi bi-person-plus-fill"></i> Create User</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('users.admin_create_user') }}" method="POST" autocomplete="off">
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-control" name="username" placeholder="e.g. client_john" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email <small class="text-muted">(optional)</small></label>
+                        <input type="email" class="form-control" name="email" placeholder="user@example.com">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-control" name="password" placeholder="Min 8 characters" required minlength="8">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Role</label>
+                        <select class="form-select" name="role">
+                            <option value="client" selected>Client</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-panel btn-primary-panel w-100">
+                        <i class="bi bi-plus-lg"></i> Create User
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="col-xl-8">
+        <div class="panel-card">
+            <div class="card-header">
+                <h5><i class="bi bi-people-fill"></i> All Users</h5>
+                <span class="badge-panel badge-client">{{ users | length }} total</span>
+            </div>
+            <div class="card-body" style="padding:0;">
+                {% if users %}
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th class="actions-cell">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>
+                                    <div style="display:flex;align-items:center;gap:0.6rem;">
+                                        <div style="width:30px;height:30px;border-radius:50%;
+                                            background:{% if user.role == 'admin' %}linear-gradient(135deg,var(--accent-primary),var(--accent-rose)){% else %}linear-gradient(135deg,var(--accent-blue),var(--accent-cyan)){% endif %};
+                                            display:flex;align-items:center;justify-content:center;
+                                            font-size:0.7rem;font-weight:700;color:white;flex-shrink:0;">
+                                            {{ user.username[0] | upper }}
+                                        </div>
+                                        <div>
+                                            <div style="font-weight:600;">{{ user.username }}</div>
+                                            {% if user.email %}<div style="font-size:0.72rem;color:var(--text-dim);">{{ user.email }}</div>{% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span class="badge-panel {% if user.role == 'admin' %}badge-admin{% else %}badge-client{% endif %}">{{ user.role }}</span></td>
+                                <td><span class="badge-panel {% if user.is_active %}badge-active{% else %}badge-inactive{% endif %}">{{ 'Active' if user.is_active else 'Inactive' }}</span></td>
+                                <td style="font-size:0.78rem;">{{ user.created_at.strftime('%b %d, %Y') if user.created_at else '—' }}</td>
+                                <td class="actions-cell">
+                                    <div style="display:flex;gap:0.35rem;justify-content:flex-end;align-items:center;">
+                                        <!-- Change Password -->
+                                        <form action="{{ url_for('users.admin_change_password', user_id=user.id) }}" method="POST" style="display:flex;gap:0.25rem;">
+                                            <input type="password" name="password" placeholder="New pwd" required minlength="8"
+                                                   style="width:90px;padding:0.3rem 0.5rem;font-size:0.75rem;background:rgba(0,0,0,0.25);border:1px solid var(--border-default);color:var(--text-primary);border-radius:4px;">
+                                            <button type="submit" class="btn-panel btn-ghost btn-sm-panel" title="Set Password">
+                                                <i class="bi bi-key"></i>
+                                            </button>
+                                        </form>
+
+                                        <!-- Toggle Active -->
+                                        <form action="{{ url_for('users.admin_toggle_user', user_id=user.id) }}" method="POST">
+                                            <button type="submit" class="btn-panel btn-sm-panel {% if user.is_active %}btn-ghost{% else %}btn-success-panel{% endif %}" title="{{ 'Deactivate' if user.is_active else 'Activate' }}">
+                                                <i class="bi {% if user.is_active %}bi-pause-circle{% else %}bi-play-circle{% endif %}"></i>
+                                            </button>
+                                        </form>
+
+                                        <!-- Delete -->
+                                        <form action="{{ url_for('users.admin_delete_user', user_id=user.id) }}" method="POST">
+                                            <button type="submit" class="btn-panel btn-danger-panel btn-sm-panel"
+                                                    data-confirm="Delete user '{{ user.username }}' permanently? This cannot be undone." title="Delete">
+                                                <i class="bi bi-trash3"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-people"></i>
+                    <p>No users yet. Create one using the form.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
