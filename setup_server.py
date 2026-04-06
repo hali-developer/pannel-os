@@ -76,10 +76,9 @@ GRANT ALL PRIVILEGES ON {pannel_db}.* TO '{pannel_user}'@'localhost';
 FLUSH PRIVILEGES;
 """
 # Create a temporary config file to pass credentials securely
-with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
-    f.write(f"[client]\nuser=root\npassword={mysql_root_pass}\n")
-    config_path = f.name
-
+    with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+        f.write(f"[client]\nuser=root\npassword={mysql_root_pass}\n")
+        config_path = f.name
 
     try:
         # Use --defaults-extra-file to pull the password from the temp file
