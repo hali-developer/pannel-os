@@ -18,6 +18,7 @@ import getpass
 import secrets
 import string
 import shutil
+import tempfile
 
 
 def run(cmd, check=True):
@@ -74,30 +75,35 @@ GRANT ALL PRIVILEGES ON {pannel_db}.* TO '{pannel_user}'@'localhost';
 
 FLUSH PRIVILEGES;
 """
-    
-    cmd = ['mysql', '-u', 'root']
-    if mysql_root_pass:
-        # Note: In MySQL 8.0+, some environments might need a space or specific flags
-        cmd.append(f'-p{mysql_root_pass}')
-    cmd.extend(['-e', mysql_cmds])
+# Create a temporary config file to pass credentials securely
+with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+    f.write(f"[client]\nuser=root\npassword={mysql_root_pass}\n")
+    config_path = f.name
+
 
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True)
-        if proc.returncode == 0:
-            print("  ✅ MySQL panel databases and users configured.")
-        else:
-            # Fallback for systems where root uses auth_socket and passwords aren't needed
-            if "using password: NO" in proc.stderr or "Access denied" in proc.stderr:
-                 print("  ⚠ Root access denied with password. Attempting via auth_socket...")
-                 proc = subprocess.run(['sudo', 'mysql', '-e', mysql_cmds], capture_output=True, text=True)
-                 if proc.returncode == 0:
-                     print("  ✅ MySQL configured via sudo/auth_socket.")
-                 else:
-                     print(f"  ❌ MySQL setup failed: {proc.stderr}")
-            else:
-                print(f"  ❌ MySQL setup failed: {proc.stderr}")
+        # Use --defaults-extra-file to pull the password from the temp file
+        cmd = ['mysql', f'--defaults-extra-file={config_path}', '-e', mysql_cmds]
+        subprocess.run(cmd, check=True)
+
+        # proc = subprocess.run(cmd, capture_output=True, text=True)
+        # if proc.returncode == 0:
+        #     print("  ✅ MySQL panel databases and users configured.")
+        # else:
+        #     # Fallback for systems where root uses auth_socket and passwords aren't needed
+        #     if "using password: NO" in proc.stderr or "Access denied" in proc.stderr:
+        #          print("  ⚠ Root access denied with password. Attempting via auth_socket...")
+        #          proc = subprocess.run(['sudo', 'mysql', '-e', mysql_cmds], capture_output=True, text=True)
+        #          if proc.returncode == 0:
+        #              print("  ✅ MySQL configured via sudo/auth_socket.")
+        #          else:
+        #              print(f"  ❌ MySQL setup failed: {proc.stderr}")
+        #     else:
+        #         print(f"  ❌ MySQL setup failed: {proc.stderr}")
     except Exception as e:
         print(f"  ❌ MySQL setup error: {e}")
+    finally:
+        os.remove(config_path)
 
     # ── Step 3: vsftpd Configuration ──
     print("\n[3/6] Configuring vsftpd...")
