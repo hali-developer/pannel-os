@@ -106,20 +106,22 @@ class DBManager:
                 
                 # 2. Setup user explicitly on localhost ONLY (no remote %)
                 host = 'localhost'
-                # Check if user exists
-                cursor.execute("SELECT User FROM mysql.user WHERE User=%s AND Host=%s", (db_user, host))
-                if cursor.fetchone():
-                    # Alter password explicitly 
-                    # mysql_native_password is used for older compatibility, caching_sha2_password is MySQL 8
+                
+                try:
+                    cursor.execute(f"CREATE USER IF NOT EXISTS '{db_user}'@'{host}' IDENTIFIED WITH mysql_native_password BY %s;", (password,))
+                except Exception:
                     try:
-                        cursor.execute(f"ALTER USER '{db_user}'@'{host}' IDENTIFIED WITH mysql_native_password BY %s;", (password,))
-                    except:
+                        cursor.execute(f"CREATE USER IF NOT EXISTS '{db_user}'@'{host}' IDENTIFIED BY %s;", (password,))
+                    except Exception:
+                        pass
+                
+                try:
+                    cursor.execute(f"ALTER USER '{db_user}'@'{host}' IDENTIFIED WITH mysql_native_password BY %s;", (password,))
+                except Exception:
+                    try:
                         cursor.execute(f"ALTER USER '{db_user}'@'{host}' IDENTIFIED BY %s;", (password,))
-                else:
-                    try:
-                        cursor.execute(f"CREATE USER '{db_user}'@'{host}' IDENTIFIED WITH mysql_native_password BY %s;", (password,))
-                    except:
-                        cursor.execute(f"CREATE USER '{db_user}'@'{host}' IDENTIFIED BY %s;", (password,))
+                    except Exception:
+                        pass
                     
                 # 3. Explicit isolation scope
                 cursor.execute(f"GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{db_user}'@'{host}';")
