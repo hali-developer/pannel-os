@@ -187,20 +187,46 @@ PANEL_VERSION=2.0.0
     
     # Apache Setup
     run("a2enmod proxy proxy_http headers rewrite")
+    
+    # Ensure phpMyAdmin is included in Apache
+    if os.path.exists('/etc/phpmyadmin/apache.conf'):
+        run("ln -sf /etc/phpmyadmin/apache.conf /etc/apache2/conf-available/phpmyadmin.conf", check=False)
+        run("a2enconf phpmyadmin", check=False)
+
     panel_apache = f"""<VirtualHost *:8080>
     ServerName _
+
+    # Exclude phpMyAdmin from proxying to Flask
+    ProxyPass /phpmyadmin !
+    Alias /phpmyadmin /usr/share/phpmyadmin
+    <Directory /usr/share/phpmyadmin>
+        Options FollowSymLinks
+        DirectoryIndex index.php
+        AllowOverride All
+        Require all granted
+    </Directory>
+
     ProxyPreserveHost On
     ProxyPass / http://127.0.0.1:5000/
     ProxyPassReverse / http://127.0.0.1:5000/
+
     Alias /static {panel_dir}/static
     <Directory {panel_dir}/static>
         Require all granted
     </Directory>
+
     ErrorLog ${{APACHE_LOG_DIR}}/panel_error.log
     CustomLog ${{APACHE_LOG_DIR}}/panel_access.log combined
 </VirtualHost>
-Listen 8080
+
+# Listen is usually defined in ports.conf, but we'll ensure it's here too for 8080
+<IfModule mod_ssl.c>
+    # If standard ports.conf doesn't have 8080
+</IfModule>
 """
+    # Note: Listen 8080 should ideally be in /etc/apache2/ports.conf
+    run("echo 'Listen 8080' > /etc/apache2/conf-available/vps-panel-ports.conf", check=False)
+    run("a2enconf vps-panel-ports", check=False)
     with open('/etc/apache2/sites-available/vps-panel.conf', 'w') as f:
         f.write(panel_apache)
 
