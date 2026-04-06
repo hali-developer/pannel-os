@@ -76,11 +76,7 @@ GRANT ALL PRIVILEGES ON {pannel_db}.* TO '{pannel_user}'@'localhost';
 FLUSH PRIVILEGES;
 """
     
-    cmd = ['mysql', '-u', 'root']
-    if mysql_root_pass:
-        # Note: In MySQL 8.0+, some environments might need a space or specific flags
-        cmd.append(f'-p{mysql_root_pass}')
-    cmd.extend(['-e', mysql_cmds])
+    cmd = ['sudo', 'mysql', '-e', mysql_cmds]
 
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True)
