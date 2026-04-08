@@ -2,7 +2,7 @@
 VPS Panel — Domains Module Services
 
 Business logic for domain management.
-Orchestrates between PostgreSQL records and Nginx configuration.
+Orchestrates between MySQL panel records and Apache configuration.
 """
 import os
 import logging
@@ -21,7 +21,7 @@ def add_domain(user_id: int, domain_name: str) -> tuple[bool, str]:
       1. Validate user exists
       2. Check for duplicate domain
       3. Generate & deploy Apache config
-      4. Record in PostgreSQL
+      4. Record in panel DB
     """
     user = User.query.get(user_id)
     if not user:
@@ -41,7 +41,7 @@ def add_domain(user_id: int, domain_name: str) -> tuple[bool, str]:
     if not ok:
         return False, f"Apache deployment failed: {msg}"
 
-    # Record in PostgreSQL
+    # Record in panel DB
     domain = Domain(
         user_id=user_id,
         domain_name=domain_name,
@@ -70,7 +70,7 @@ def remove_domain(domain_name: str) -> tuple[bool, str]:
     if not ok:
         logger.warning(f"Apache undeploy warning for {domain_name}: {msg}")
 
-    # Remove from PostgreSQL
+    # Remove from panel DB
     try:
         db.session.delete(domain)
         db.session.commit()

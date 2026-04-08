@@ -2,7 +2,7 @@
 VPS Panel — FTP Module Services
 
 Business logic for FTP account management.
-Orchestrates between PostgreSQL records and system-level FTP operations.
+Orchestrates between MySQL panel records and system-level FTP operations.
 """
 import logging
 from flask import current_app
@@ -20,7 +20,7 @@ def create_ftp_account(user_id: int, ftp_username: str, password: str) -> tuple[
       1. Validate user exists
       2. Check for duplicate FTP username
       3. Provision system user (Linux) or mock (Windows)
-      4. Record in PostgreSQL
+      4. Record in panel DB
     """
     user = User.query.get(user_id)
     if not user:

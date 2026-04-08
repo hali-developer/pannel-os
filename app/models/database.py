@@ -1,5 +1,5 @@
 """
-VPS Panel — Client Database Model (PostgreSQL)
+VPS Panel — Client Database Model (MySQL)
 
 Tracks MySQL databases provisioned for each client user.
 """
@@ -17,6 +17,11 @@ class ClientDatabase(db.Model):
     db_host = db.Column(db.String(255), default='localhost', nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+    @property
+    def granted_users(self):
+        """List of db_usernames that have been granted access to this database."""
+        return [p.db_user.db_username for p in self.permissions.all() if p.db_user]
+
     def __repr__(self):
         return f'<ClientDatabase {self.db_name}>'
 
@@ -29,4 +34,5 @@ class ClientDatabase(db.Model):
             'db_host': self.db_host,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'owner': self.owner.username if self.owner else None,
+            'granted_users': [p.db_user.db_username for p in self.permissions.all() if p.db_user],
         }

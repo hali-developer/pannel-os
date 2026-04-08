@@ -1,5 +1,5 @@
 """
-VPS Panel — Activity Log Model (PostgreSQL)
+VPS Panel — Activity Log Model (MySQL)
 
 Records all significant user and admin actions for audit.
 """
@@ -13,7 +13,7 @@ class ActivityLog(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
     action = db.Column(db.String(255), nullable=False)
-    target_type = db.Column(db.String(50), nullable=True)  # 'domain', 'ftp', 'database', 'user'
+    target_type = db.Column(db.String(50), nullable=True)  # 'domain', 'ftp', 'database', 'user', 'db_user'
     target_id = db.Column(db.String(100), nullable=True)
     ip_address = db.Column(db.String(45), nullable=True)
     details = db.Column(db.Text, nullable=True)

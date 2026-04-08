@@ -61,13 +61,16 @@ class BaseConfig:
     MYSQL_ADMIN_USER = os.environ.get('MYSQL_ADMIN_USER', 'pannel_admin')
     MYSQL_ADMIN_PASSWORD = os.environ.get('MYSQL_ADMIN_PASSWORD', 'StrongMySQLPass123!')
 
+    # DB Password Encryption
+    DB_PASSWORD_ENCRYPTION_KEY = os.environ.get('DB_PASSWORD_ENCRYPTION_KEY', None)
+
     # Logging
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
     LOG_FILE = os.environ.get('LOG_FILE', None)
 
     # Panel Metadata
     PANEL_NAME = os.environ.get('PANEL_NAME', 'VPS Panel')
-    PANEL_VERSION = os.environ.get('PANEL_VERSION', '2.0.0')
+    PANEL_VERSION = os.environ.get('PANEL_VERSION', '3.0.0')
 
     # Session
     PERMANENT_SESSION_LIFETIME = timedelta(hours=8)

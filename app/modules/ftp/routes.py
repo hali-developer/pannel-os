@@ -102,6 +102,25 @@ def api_create_ftp():
     return jsonify({"error": msg}), 400
 
 
+@ftp_bp.route('/api/ftp/password', methods=['PUT'])
+@admin_required_api
+def api_change_ftp_password():
+    """API: Change FTP password."""
+    data = request.get_json(silent=True) or {}
+    ftp_username = (data.get('ftp_username') or '').strip()
+    password = data.get('password') or ''
+
+    if not ftp_username:
+        return jsonify({"error": "ftp_username is required"}), 400
+    if len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
+
+    ok, msg = ftp_svc.change_ftp_password(ftp_username, password)
+    if ok:
+        return jsonify({"message": msg}), 200
+    return jsonify({"error": msg}), 400
+
+
 @ftp_bp.route('/api/ftp/delete', methods=['DELETE'])
 @admin_required_api
 def api_delete_ftp():
@@ -121,5 +140,11 @@ def api_delete_ftp():
 @login_required_api
 def api_list_ftp():
     """API: List FTP accounts."""
-    accounts = ftp_svc.get_all_ftp_accounts()
+    from flask_jwt_extended import get_jwt
+    claims = get_jwt()
+    if claims.get('role') == 'admin':
+        accounts = ftp_svc.get_all_ftp_accounts()
+    else:
+        user_id = int(claims.get('sub', 0))
+        accounts = ftp_svc.get_ftp_accounts_for_user(user_id)
     return jsonify({"accounts": [a.to_dict() for a in accounts]}), 200

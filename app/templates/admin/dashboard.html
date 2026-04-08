@@ -29,9 +29,9 @@
     </div>
     <div class="col-md-6 col-xl-3">
         <div class="stat-card amber">
-            <div class="stat-icon"><i class="bi bi-folder2-open"></i></div>
-            <div class="stat-value">{{ stats.total_ftp_accounts }}</div>
-            <div class="stat-label">FTP Accounts</div>
+            <div class="stat-icon"><i class="bi bi-person-lock"></i></div>
+            <div class="stat-value">{{ stats.total_db_users }}</div>
+            <div class="stat-label">DB Users</div>
         </div>
     </div>
 </div>
@@ -54,6 +54,9 @@
                     </a>
                     <a href="{{ url_for('database.admin_databases_page') }}" class="btn-panel btn-ghost" style="justify-content:flex-start;">
                         <i class="bi bi-database-add"></i> Manage Databases
+                    </a>
+                    <a href="{{ url_for('db_users.admin_db_users_page') }}" class="btn-panel btn-ghost" style="justify-content:flex-start;">
+                        <i class="bi bi-person-lock"></i> Manage DB Users
                     </a>
                     <a href="{{ url_for('domains.admin_domains_page') }}" class="btn-panel btn-ghost" style="justify-content:flex-start;">
                         <i class="bi bi-globe"></i> Manage Domains

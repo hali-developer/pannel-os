@@ -20,16 +20,25 @@ logger = logging.getLogger(__name__)
 ALLOWED_COMMANDS = {
     'useradd', 'userdel', 'usermod', 'chpasswd', 'passwd',
     'chown', 'chmod', 'mkdir', 'rm', 'mv', 'cp', 'ln',
-    'nginx', 'systemctl',
+    'a2ensite', 'a2dissite', 'a2enmod', 'a2enconf',
+    'apache2ctl', 'apachectl',
+    'nginx',
+    'systemctl',
     'certbot',          # future: SSL
     'tar', 'gzip',      # future: backups
+    'tee',              # for writing files via sudo
+    'touch',            # for creating files
 }
 
 # Commands that require sudo
 SUDO_COMMANDS = {
     'useradd', 'userdel', 'usermod', 'chpasswd', 'passwd',
     'chown', 'chmod', 'mkdir', 'rm', 'mv', 'cp', 'ln',
-    'nginx', 'systemctl', 'certbot', 'tar',
+    'a2ensite', 'a2dissite', 'a2enmod', 'a2enconf',
+    'apache2ctl', 'apachectl',
+    'nginx',
+    'systemctl', 'certbot', 'tar',
+    'tee', 'touch',
 }
 
 

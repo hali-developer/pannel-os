@@ -71,7 +71,7 @@
                                 <th>Database</th>
                                 <th>DB User</th>
                                 <th>Owner</th>
-                                <th>Host</th>
+                                <th>Granted Users</th>
                                 <th>Created</th>
                                 <th class="actions-cell">Actions</th>
                             </tr>
@@ -86,15 +86,54 @@
                                 </td>
                                 <td style="font-size:0.82rem;">{{ db.db_user }}</td>
                                 <td>{{ db.owner.username if db.owner else '—' }}</td>
-                                <td style="font-size:0.78rem;color:var(--text-dim);">{{ db.db_host }}</td>
+                                <td style="font-size:0.78rem;">
+                                    {% set granted = db.granted_users %}
+                                    {% if granted %}
+                                        {% for gu in granted %}
+                                        <span style="background:var(--accent-purple-soft);color:var(--accent-purple);padding:0.1rem 0.4rem;border-radius:3px;font-size:0.72rem;margin-right:0.2rem;">{{ gu }}</span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span style="color:var(--text-dim);">—</span>
+                                    {% endif %}
+                                </td>
                                 <td style="font-size:0.78rem;">{{ db.created_at.strftime('%b %d, %Y') if db.created_at else '—' }}</td>
                                 <td class="actions-cell">
-                                    <form action="{{ url_for('database.admin_delete_database', db_name=db.db_name) }}" method="POST">
-                                        <button type="submit" class="btn-panel btn-danger-panel btn-sm-panel"
-                                                data-confirm="Drop database '{{ db.db_name }}' and user '{{ db.db_user }}'? This is permanent!" title="Delete">
-                                            <i class="bi bi-trash3"></i> Drop
+                                    <div style="display:flex;gap:0.35rem;">
+                                        <!-- Change Password -->
+                                        <button type="button" class="btn-panel btn-ghost btn-sm-panel"
+                                                data-bs-toggle="modal" data-bs-target="#pwdModal_{{ loop.index }}" title="Change Password">
+                                            <i class="bi bi-key"></i>
                                         </button>
-                                    </form>
+                                        <!-- Delete -->
+                                        <form action="{{ url_for('database.admin_delete_database', db_name=db.db_name) }}" method="POST">
+                                            <button type="submit" class="btn-panel btn-danger-panel btn-sm-panel"
+                                                    data-confirm="Drop database '{{ db.db_name }}' and user '{{ db.db_user }}'? This is permanent!" title="Delete">
+                                                <i class="bi bi-trash3"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    <!-- Password Modal -->
+                                    <div class="modal fade" id="pwdModal_{{ loop.index }}" tabindex="-1">
+                                        <div class="modal-dialog modal-sm">
+                                            <div class="modal-content" style="background:var(--bg-card);border:1px solid var(--border-default);">
+                                                <form action="{{ url_for('database.admin_update_db_password', db_name=db.db_name) }}" method="POST">
+                                                    <div class="modal-header" style="border-bottom:1px solid var(--border-default);">
+                                                        <h6 class="modal-title">Change Password — {{ db.db_user }}</h6>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <input type="password" class="form-control" name="password" placeholder="New password (min 8)" required minlength="8">
+                                                    </div>
+                                                    <div class="modal-footer" style="border-top:1px solid var(--border-default);">
+                                                        <button type="submit" class="btn-panel btn-success-panel btn-sm-panel">
+                                                            <i class="bi bi-check-lg"></i> Update
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </td>
                             </tr>
                             {% endfor %}

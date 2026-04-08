@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-VPS Panel — Database Seeder
+VPS Panel v3.0 — Database Seeder
 
-Creates demo client accounts and provisions sample databases.
+Creates demo client accounts and provisions sample databases + DB users.
 Run after setup to populate the panel with test data.
 
 Usage: python seed.py
@@ -22,6 +22,8 @@ from app.models.user import User
 from app.models.domain import Domain
 from app.models.ftp_account import FTPAccount
 from app.models.database import ClientDatabase
+from app.models.db_user import DbUser
+from app.models.db_user_permission import DbUserPermission
 from app.modules.users.services import create_user
 
 
@@ -29,7 +31,7 @@ def seed():
     app = create_app('development')
 
     with app.app_context():
-        print("🌱 VPS Panel Seeder")
+        print("🌱 VPS Panel v3.0 Seeder")
         print("=" * 50)
 
         # ── Seed Client Users ──
@@ -108,7 +110,7 @@ def seed():
             db.session.add(acct)
             print(f"  ✅ FTP: {df['ftp_user']} → {user.username}")
 
-        # ── Seed Database Records (panel-side only, no real MySQL) ──
+        # ── Seed Database Records ──
         print("\n🗄️  Creating demo database records...")
         demo_dbs = [
             {"username": "demo_client_a", "db_name": "demo_client_a_wp", "db_user": "demo_client_a_usr"},
@@ -133,6 +135,62 @@ def seed():
             )
             db.session.add(record)
             print(f"  ✅ DB: {dd['db_name']} (user: {dd['db_user']}) → {user.username}")
+
+        # ── Seed DB Users ──
+        print("\n👤 Creating demo DB users...")
+        demo_db_users = [
+            {"username": "demo_client_a", "db_username": "demo_client_a_dbuser1"},
+            {"username": "demo_client_b", "db_username": "demo_client_b_dbuser1"},
+        ]
+
+        for dbu in demo_db_users:
+            user = User.query.filter_by(username=dbu['username']).first()
+            if not user:
+                continue
+
+            existing = DbUser.query.filter_by(db_username=dbu['db_username']).first()
+            if existing:
+                print(f"  ℹ️  DB user '{dbu['db_username']}' already exists.")
+                continue
+
+            record = DbUser(
+                db_username=dbu['db_username'],
+                db_password_encrypted='SEED_PLACEHOLDER',
+                owner_user_id=user.id,
+                db_host='localhost',
+            )
+            db.session.add(record)
+            print(f"  ✅ DB User: {dbu['db_username']} → {user.username}")
+
+        db.session.commit()
+
+        # ── Seed DB User Permissions ──
+        print("\n🔗 Creating demo permissions...")
+        demo_perms = [
+            {"db_username": "demo_client_a_dbuser1", "db_name": "demo_client_a_wp"},
+            {"db_username": "demo_client_b_dbuser1", "db_name": "demo_client_b_shop"},
+        ]
+
+        for dp in demo_perms:
+            db_user = DbUser.query.filter_by(db_username=dp['db_username']).first()
+            client_db = ClientDatabase.query.filter_by(db_name=dp['db_name']).first()
+            if not db_user or not client_db:
+                continue
+
+            existing = DbUserPermission.query.filter_by(
+                db_user_id=db_user.id,
+                db_id=client_db.id,
+            ).first()
+            if existing:
+                print(f"  ℹ️  Permission '{dp['db_username']}' → '{dp['db_name']}' already exists.")
+                continue
+
+            perm = DbUserPermission(
+                db_user_id=db_user.id,
+                db_id=client_db.id,
+            )
+            db.session.add(perm)
+            print(f"  ✅ Permission: {dp['db_username']} → {dp['db_name']}")
 
         db.session.commit()
 

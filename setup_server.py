@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """
-VPS Panel — Server Setup Script (Ubuntu 24.04+)
+VPS Panel v3.0 — Server Setup Script (Ubuntu 24.04+)
 
 Interactive script to install and configure all dependencies:
   - Apache2, vsftpd, MySQL, PHP, phpMyAdmin
   - Create MySQL panel database and user
   - Create MySQL panel admin user with GRANT ALL
+  - Configure vsftpd for local users with chroot
   - Generate .env from template
+  - Generate Fernet encryption key for DB passwords
   - Run initial database migration
+  - Deploy systemd service for Gunicorn
 
 Usage: sudo python3 setup_server.py
 """
@@ -33,9 +36,15 @@ def generate_secret(length=64):
     return ''.join(secrets.choice(chars) for _ in range(length))
 
 
+def generate_fernet_key():
+    """Generate a Fernet encryption key for DB password encryption."""
+    from cryptography.fernet import Fernet
+    return Fernet.generate_key().decode()
+
+
 def main():
     print("=" * 60)
-    print("  VPS Panel — Server Setup (Ubuntu 24.04+)")
+    print("  VPS Panel v3.0 — Server Setup (Ubuntu 24.04+)")
     print("=" * 60)
     print()
 
@@ -44,16 +53,18 @@ def main():
         sys.exit(1)
 
     # ── Step 1: System Packages ──
-    print("\n[1/6] Installing system packages...")
+    print("\n[1/7] Installing system packages...")
     run("apt update -y")
-    run("apt install -y apache2 mysql-server vsftpd libapache2-mod-php php-mysql "
-        "phpmyadmin python3-pip python3-venv certbot python3-certbot-apache")
+    run("apt install -y apache2 mysql-server vsftpd "
+        "libapache2-mod-php php-mysql php-mbstring php-zip php-gd php-json php-curl "
+        "phpmyadmin python3-pip python3-venv python3-dev "
+        "certbot python3-certbot-apache "
+        "libmysqlclient-dev build-essential")
     print("  ✅ System packages installed.")
 
     # ── Step 2: MySQL Setup (Panel & Admin) ──
-    print("\n[2/6] Configuring MySQL...")
-    mysql_root_pass = getpass.getpass("  MySQL root password (hit enter if empty): ").strip()
-    
+    print("\n[2/7] Configuring MySQL...")
+
     # 2.1 Admin Account (for provisioning)
     mysql_admin_user = input("  MySQL panel admin username [pannel_admin]: ").strip() or "pannel_admin"
     mysql_admin_pass = getpass.getpass(f"  MySQL password for '{mysql_admin_user}': ") or "StrongMySQLPass123!"
@@ -83,7 +94,6 @@ FLUSH PRIVILEGES;
         if proc.returncode == 0:
             print("  ✅ MySQL panel databases and users configured.")
         else:
-            # Fallback for systems where root uses auth_socket and passwords aren't needed
             if "using password: NO" in proc.stderr or "Access denied" in proc.stderr:
                  print("  ⚠ Root access denied with password. Attempting via auth_socket...")
                  proc = subprocess.run(['sudo', 'mysql', '-e', mysql_cmds], capture_output=True, text=True)
@@ -97,8 +107,7 @@ FLUSH PRIVILEGES;
         print(f"  ❌ MySQL setup error: {e}")
 
     # ── Step 3: vsftpd Configuration ──
-    print("\n[3/6] Configuring vsftpd...")
-    # ... (vsftpd logic same as before)
+    print("\n[3/7] Configuring vsftpd...")
     vsftpd_conf = """listen=YES
 listen_ipv6=NO
 anonymous_enable=NO
@@ -124,14 +133,24 @@ user_config_dir=/etc/vsftpd_user_conf
     if not os.path.exists('/etc/vsftpd.userlist'):
         with open('/etc/vsftpd.userlist', 'w') as f: f.write('')
     run("systemctl restart vsftpd", check=False)
-    print("  ✅ vsftpd configured.")
+    run("systemctl enable vsftpd", check=False)
+    print("  ✅ vsftpd configured with chroot + local users.")
 
-    # ── Step 4: Generate .env ──
-    print("\n[4/6] Generating .env file...")
+    # ── Step 4: Generate Fernet Key ──
+    print("\n[4/7] Generating encryption keys...")
+    try:
+        fernet_key = generate_fernet_key()
+        print(f"  ✅ Fernet key generated for DB password encryption.")
+    except ImportError:
+        print("  ⚠ cryptography not installed yet, will generate after pip install.")
+        fernet_key = "GENERATE_AFTER_PIP_INSTALL"
+
+    # ── Step 5: Generate .env ──
+    print("\n[5/7] Generating .env file...")
     panel_dir = os.path.dirname(os.path.abspath(__file__))
     env_path = os.path.join(panel_dir, '.env')
 
-    env_content = f"""# VPS Panel Configuration (Auto-generated)
+    env_content = f"""# VPS Panel v3.0 Configuration (Auto-generated)
 FLASK_ENV=production
 SECRET_KEY={generate_secret()}
 JWT_SECRET_KEY={generate_secret()}
@@ -147,6 +166,8 @@ MYSQL_PORT=3306
 MYSQL_ADMIN_USER={mysql_admin_user}
 MYSQL_ADMIN_PASSWORD={mysql_admin_pass}
 
+DB_PASSWORD_ENCRYPTION_KEY={fernet_key}
+
 FTP_METHOD=vsftpd
 FTP_USER_CONF_DIR=/etc/vsftpd_user_conf
 
@@ -157,14 +178,14 @@ WEB_ROOT=/var/www
 LOG_LEVEL=INFO
 LOG_FILE=/var/log/pannel/panel.log
 PANEL_NAME=VPS Panel
-PANEL_VERSION=2.0.0
+PANEL_VERSION=3.0.0
 """
     with open(env_path, 'w') as f:
         f.write(env_content)
     print(f"  ✅ .env written.")
 
-    # ── Step 5: Python Environment ──
-    print("\n[5/6] Setting up Python environment...")
+    # ── Step 6: Python Environment ──
+    print("\n[6/7] Setting up Python environment...")
     venv_path = os.path.join(panel_dir, 'venv')
     if not os.path.exists(venv_path):
         run(f"python3 -m venv {venv_path}")
@@ -174,8 +195,25 @@ PANEL_VERSION=2.0.0
     run(f"{pip_path} install -r {os.path.join(panel_dir, 'requirements.txt')}")
     print("  ✅ Python dependencies installed.")
 
-    # ── Step 6: Final setup ──
-    print("\n[6/6] Final cleanup & panel deployment...")
+    # Regenerate Fernet key if it was deferred
+    if fernet_key == "GENERATE_AFTER_PIP_INSTALL":
+        python_path = os.path.join(venv_path, 'bin', 'python')
+        result = subprocess.run(
+            [python_path, '-c', 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'],
+            capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            fernet_key = result.stdout.strip()
+            # Update .env
+            with open(env_path, 'r') as f:
+                env_text = f.read()
+            env_text = env_text.replace('GENERATE_AFTER_PIP_INSTALL', fernet_key)
+            with open(env_path, 'w') as f:
+                f.write(env_text)
+            print("  ✅ Fernet key generated and .env updated.")
+
+    # ── Step 7: Final setup ──
+    print("\n[7/7] Final cleanup & panel deployment...")
     os.makedirs('/var/log/pannel', exist_ok=True)
 
     python_path = os.path.join(venv_path, 'bin', 'python')
@@ -183,7 +221,7 @@ PANEL_VERSION=2.0.0
     run(f"cd {panel_dir} && {python_path} -c \"from app import create_app; create_app()\"")
     
     # Apache Setup
-    run("a2enmod proxy proxy_http headers rewrite")
+    run("a2enmod proxy proxy_http headers rewrite", check=False)
     
     # Ensure phpMyAdmin is included in Apache
     if os.path.exists('/etc/phpmyadmin/apache.conf'):
@@ -215,13 +253,8 @@ PANEL_VERSION=2.0.0
     ErrorLog ${{APACHE_LOG_DIR}}/panel_error.log
     CustomLog ${{APACHE_LOG_DIR}}/panel_access.log combined
 </VirtualHost>
-
-# Listen is usually defined in ports.conf, but we'll ensure it's here too for 8080
-<IfModule mod_ssl.c>
-    # If standard ports.conf doesn't have 8080
-</IfModule>
 """
-    # Note: Listen 8080 should ideally be in /etc/apache2/ports.conf
+    # Ensure port 8080 is configured
     run("echo 'Listen 8080' > /etc/apache2/conf-available/vps-panel-ports.conf", check=False)
     run("a2enconf vps-panel-ports", check=False)
     with open('/etc/apache2/sites-available/vps-panel.conf', 'w') as f:
@@ -230,10 +263,73 @@ PANEL_VERSION=2.0.0
     run("a2ensite vps-panel.conf", check=False)
     run("systemctl restart apache2", check=False)
 
+    # Create systemd service for Gunicorn
+    gunicorn_path = os.path.join(venv_path, 'bin', 'gunicorn')
+    systemd_service = f"""[Unit]
+Description=VPS Panel Gunicorn Service
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory={panel_dir}
+Environment="PATH={os.path.join(venv_path, 'bin')}"
+ExecStart={gunicorn_path} --workers 3 --bind 127.0.0.1:5000 --timeout 120 run:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+"""
+    with open('/etc/systemd/system/vps-panel.service', 'w') as f:
+        f.write(systemd_service)
+    run("systemctl daemon-reload", check=False)
+    run("systemctl enable vps-panel", check=False)
+    run("systemctl start vps-panel", check=False)
+
+    # Copy phpMyAdmin config
+    pma_config_src = os.path.join(panel_dir, 'phpmyadmin_config.inc.php')
+    pma_config_dst = '/etc/phpmyadmin/conf.d/vps-panel.inc.php'
+    if os.path.exists(pma_config_src):
+        os.makedirs('/etc/phpmyadmin/conf.d', exist_ok=True)
+        shutil.copy2(pma_config_src, pma_config_dst)
+        print("  ✅ phpMyAdmin config deployed.")
+
+    # Create sudoers rule for panel
+    sudoers_rule = f"""# VPS Panel — allow www-data to manage system users and services
+www-data ALL=(ALL) NOPASSWD: /usr/sbin/useradd, /usr/sbin/userdel, /usr/sbin/usermod
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chpasswd
+www-data ALL=(ALL) NOPASSWD: /bin/chown, /bin/chmod, /bin/mkdir, /bin/rm, /bin/mv, /bin/cp, /bin/ln
+www-data ALL=(ALL) NOPASSWD: /usr/sbin/a2ensite, /usr/sbin/a2dissite, /usr/sbin/apache2ctl
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl reload apache2, /bin/systemctl restart apache2
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart vsftpd
+root ALL=(ALL) NOPASSWD: ALL
+"""
+    with open('/etc/sudoers.d/vps-panel', 'w') as f:
+        f.write(sudoers_rule)
+    run("chmod 440 /etc/sudoers.d/vps-panel", check=False)
+    print("  ✅ Sudoers rules configured.")
+
     print("\n" + "=" * 60)
-    print("  ✅ VPS Panel (MySQL Edition) setup complete!")
+    print("  ✅ VPS Panel v3.0 setup complete!")
     print("=" * 60)
-    print(f"  Panel URL: http://YOUR_IP:8080\n")
+    print(f"""
+  Panel URL:      http://YOUR_IP:8080
+  phpMyAdmin:     http://YOUR_IP:8080/phpmyadmin
+  
+  Default login:  admin / admin
+  
+  Service:        systemctl status vps-panel
+  Logs:           journalctl -u vps-panel -f
+  
+  IMPORTANT: Change the admin password immediately!
+  
+  vsftpd Config:
+    - chroot_local_user=YES
+    - allow_writeable_chroot=YES
+    - FTPS enabled with SSL
+    - Passive ports: 40000-50000
+""")
 
 
 if __name__ == '__main__':

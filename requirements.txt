@@ -1,5 +1,5 @@
 # ══════════════════════════════════════
-# VPS Panel — Python Dependencies
+# VPS Panel v3.0 — Python Dependencies
 # ══════════════════════════════════════
 
 # ── Core Framework ──
@@ -21,6 +21,10 @@ alembic>=1.13.0
 # ── Authentication & Security ──
 Flask-JWT-Extended==4.6.0
 PyJWT>=2.8.0
+bcrypt>=4.0.0
+
+# ── Encryption (for DB user passwords) ──
+cryptography>=41.0.0
 
 # ── CORS Support ──
 Flask-CORS==4.0.0

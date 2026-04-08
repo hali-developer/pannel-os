@@ -1,5 +1,5 @@
 """
-VPS Panel — Domain Model (PostgreSQL)
+VPS Panel — Domain Model (MySQL)
 """
 from datetime import datetime
 from app.extensions import db

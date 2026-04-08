@@ -62,6 +62,21 @@ def admin_delete_database(db_name):
     return redirect(url_for('database.admin_databases_page'))
 
 
+@database_bp.route('/admin/databases/<string:db_name>/password', methods=['POST'])
+@admin_required_web
+@log_activity('update_database_password')
+def admin_update_db_password(db_name):
+    """Update primary DB user password."""
+    password = request.form.get('password', '')
+    if len(password) < 8:
+        flash('Password must be at least 8 characters.', 'danger')
+        return redirect(url_for('database.admin_databases_page'))
+
+    ok, msg = db_svc.update_database_password(db_name, password)
+    flash(msg, 'success' if ok else 'danger')
+    return redirect(url_for('database.admin_databases_page'))
+
+
 # ════════════════════════════════════════
 # CLIENT WEB ROUTES
 # ════════════════════════════════════════
@@ -103,7 +118,6 @@ def client_create_database():
 @log_activity('client_delete_database')
 def client_delete_database(db_name):
     """Client deletes their own database."""
-    # Verify ownership
     record = db_svc.get_database_by_name(db_name)
     if not record or record.user_id != session['user_id']:
         flash('Database not found or access denied.', 'danger')
@@ -154,6 +168,25 @@ def api_list_databases():
         user_id = int(claims.get('sub', 0))
         databases = db_svc.get_databases_for_user(user_id)
     return jsonify({"databases": [d.to_dict() for d in databases]}), 200
+
+
+@database_bp.route('/api/db/update', methods=['PUT'])
+@admin_required_api
+def api_update_database():
+    """API: Update database user password."""
+    data = request.get_json(silent=True) or {}
+    db_name = (data.get('db_name') or '').strip()
+    password = data.get('password') or ''
+
+    if not db_name:
+        return jsonify({"error": "db_name is required"}), 400
+    if len(password) < 8:
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
+
+    ok, msg = db_svc.update_database_password(db_name, password)
+    if ok:
+        return jsonify({"message": msg}), 200
+    return jsonify({"error": msg}), 400
 
 
 @database_bp.route('/api/db/delete', methods=['DELETE'])

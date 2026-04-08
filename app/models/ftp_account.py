@@ -1,5 +1,5 @@
 """
-VPS Panel — FTP Account Model (PostgreSQL)
+VPS Panel — FTP Account Model (MySQL)
 """
 from datetime import datetime
 from app.extensions import db

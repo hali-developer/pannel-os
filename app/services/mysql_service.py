@@ -5,6 +5,7 @@ Low-level MySQL operations for provisioning client databases and users.
 Uses PyMySQL with parameterized DDL where possible, and strict input
 validation for identifiers that cannot be parameterized.
 """
+import os
 import pymysql
 import logging
 from flask import current_app
@@ -18,7 +19,6 @@ class MySQLService:
     @staticmethod
     def _get_admin_connection(database: str = None) -> pymysql.Connection:
         """Get a connection using the panel's MySQL admin credentials."""
-        # Preparation
         host = current_app.config['MYSQL_HOST']
         user = current_app.config['MYSQL_ADMIN_USER']
         password = current_app.config['MYSQL_ADMIN_PASSWORD']
@@ -26,7 +26,7 @@ class MySQLService:
         unix_socket = current_app.config.get('MYSQL_UNIX_SOCKET', '/var/run/mysqld/mysqld.sock')
 
         try:
-            # If host is localhost, try connecting via UNIX socket first for better reliability on Linux
+            # If host is localhost, try connecting via UNIX socket first
             if host in ('localhost', '127.0.0.1') and os.path.exists(unix_socket):
                 try:
                     return pymysql.connect(
@@ -54,7 +54,11 @@ class MySQLService:
             )
         except pymysql.Error as e:
             logger.error(f"MySQL connection failed: {e}")
-            raise ConnectionError(f"Cannot connect to MySQL admin after multiple attempts: {e}")
+            raise ConnectionError(f"Cannot connect to MySQL admin: {e}")
+
+    # ════════════════════════════════════════
+    # DATABASE OPERATIONS
+    # ════════════════════════════════════════
 
     @classmethod
     def create_database(cls, db_name: str) -> tuple[bool, str]:
@@ -62,7 +66,6 @@ class MySQLService:
         conn = cls._get_admin_connection()
         try:
             with conn.cursor() as cursor:
-                # db_name is pre-validated by security.validate_db_name()
                 cursor.execute(
                     f"CREATE DATABASE IF NOT EXISTS `{db_name}` "
                     f"CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
@@ -91,6 +94,10 @@ class MySQLService:
             return False, str(e)
         finally:
             conn.close()
+
+    # ════════════════════════════════════════
+    # USER OPERATIONS
+    # ════════════════════════════════════════
 
     @classmethod
     def create_user(cls, username: str, password: str, host: str = 'localhost') -> tuple[bool, str]:
@@ -149,6 +156,36 @@ class MySQLService:
             conn.close()
 
     @classmethod
+    def update_user_password(cls, username: str, new_password: str, host: str = 'localhost') -> tuple[bool, str]:
+        """Update a MySQL user's password."""
+        conn = cls._get_admin_connection()
+        try:
+            safe_pwd = conn.escape_string(new_password)
+            with conn.cursor() as cursor:
+                try:
+                    cursor.execute(
+                        f"ALTER USER '{username}'@'{host}' IDENTIFIED BY '{safe_pwd}';"
+                    )
+                except pymysql.Error:
+                    cursor.execute(
+                        f"ALTER USER '{username}'@'{host}' "
+                        f"IDENTIFIED WITH mysql_native_password BY '{safe_pwd}';"
+                    )
+                cursor.execute("FLUSH PRIVILEGES;")
+            conn.commit()
+            logger.info(f"Password updated for MySQL user: {username}@{host}")
+            return True, f"Password updated for '{username}'@'{host}'."
+        except pymysql.Error as e:
+            logger.error(f"Failed to update password for {username}: {e}")
+            return False, str(e)
+        finally:
+            conn.close()
+
+    # ════════════════════════════════════════
+    # PRIVILEGE OPERATIONS
+    # ════════════════════════════════════════
+
+    @classmethod
     def grant_privileges(cls, db_name: str, username: str, host: str = 'localhost') -> tuple[bool, str]:
         """Grant ALL privileges on a specific database to a user."""
         conn = cls._get_admin_connection()
@@ -179,12 +216,53 @@ class MySQLService:
                 cursor.execute("FLUSH PRIVILEGES;")
             conn.commit()
             logger.info(f"Revoked privileges on {db_name} from {username}@{host}")
-            return True, f"Privileges revoked."
+            return True, "Privileges revoked."
         except pymysql.Error as e:
             logger.error(f"Failed to revoke privileges: {e}")
             return False, str(e)
         finally:
             conn.close()
+
+    @classmethod
+    def revoke_all_user_privileges(cls, username: str, host: str = 'localhost') -> tuple[bool, str]:
+        """Revoke ALL privileges from a user across all databases."""
+        conn = cls._get_admin_connection()
+        try:
+            with conn.cursor() as cursor:
+                # Get all grants for this user
+                try:
+                    cursor.execute(f"SHOW GRANTS FOR '{username}'@'{host}';")
+                    grants = cursor.fetchall()
+                    # Revoke each grant (skip USAGE which is the base grant)
+                    for grant_row in grants:
+                        grant_str = list(grant_row.values())[0]
+                        if 'USAGE' not in grant_str.upper() or 'ON *.*' not in grant_str:
+                            # Extract database name from GRANT statement
+                            pass
+                except pymysql.Error:
+                    pass  # User may not exist
+
+                # Simpler approach: revoke all
+                try:
+                    cursor.execute(
+                        f"REVOKE ALL PRIVILEGES, GRANT OPTION FROM '{username}'@'{host}';"
+                    )
+                except pymysql.Error:
+                    pass  # May fail if no privileges exist
+
+                cursor.execute("FLUSH PRIVILEGES;")
+            conn.commit()
+            logger.info(f"Revoked all privileges from {username}@{host}")
+            return True, "All privileges revoked."
+        except pymysql.Error as e:
+            logger.error(f"Failed to revoke all privileges from {username}: {e}")
+            return False, str(e)
+        finally:
+            conn.close()
+
+    # ════════════════════════════════════════
+    # HIGH-LEVEL PROVISIONING
+    # ════════════════════════════════════════
 
     @classmethod
     def provision_database(cls, db_name: str, db_user: str, password: str) -> tuple[bool, str]:
@@ -200,7 +278,6 @@ class MySQLService:
         # Step 2: Create user
         ok, msg = cls.create_user(db_user, password)
         if not ok:
-            # Rollback: drop the database we just created
             cls.drop_database(db_name)
             return False, f"User creation failed: {msg}"
 

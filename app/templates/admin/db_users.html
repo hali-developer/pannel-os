@@ -1,0 +1,185 @@
+{% extends 'panel_layout.html' %}
+
+{% block title %}DB User Management — VPS Panel{% endblock %}
+{% block page_title %}DB Users <span>/ MySQL Access Control</span>{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    <!-- Left Column: Create + Grant -->
+    <div class="col-xl-4">
+        <!-- Create DB User -->
+        <div class="panel-card mb-3">
+            <div class="card-header">
+                <h5><i class="bi bi-person-plus-fill"></i> Create DB User</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('db_users.admin_create_db_user') }}" method="POST" autocomplete="off">
+                    <div class="mb-3">
+                        <label class="form-label">Owner (Panel User)</label>
+                        <select class="form-select" name="user_id" required>
+                            <option value="">Select user...</option>
+                            {% for u in users %}
+                            <option value="{{ u.id }}">{{ u.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">MySQL Username</label>
+                        <input type="text" class="form-control" name="db_username" placeholder="e.g. john_wp_user" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">MySQL Password</label>
+                        <input type="password" class="form-control" name="password" placeholder="Min 8 characters" required minlength="8">
+                    </div>
+                    <button type="submit" class="btn-panel btn-success-panel w-100">
+                        <i class="bi bi-plus-lg"></i> Create DB User
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Grant DB Access -->
+        <div class="panel-card">
+            <div class="card-header">
+                <h5><i class="bi bi-shield-check"></i> Grant DB Access</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('db_users.admin_grant_db_access') }}" method="POST" autocomplete="off">
+                    <div class="mb-3">
+                        <label class="form-label">DB User</label>
+                        <select class="form-select" name="db_username" required>
+                            <option value="">Select DB user...</option>
+                            {% for dbu in db_users %}
+                            <option value="{{ dbu.db_username }}">{{ dbu.db_username }} ({{ dbu.owner.username }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Database</label>
+                        <select class="form-select" name="db_name" required>
+                            <option value="">Select database...</option>
+                            {% for d in databases %}
+                            <option value="{{ d.db_name }}">{{ d.db_name }} ({{ d.owner.username }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-panel btn-success-panel w-100">
+                        <i class="bi bi-shield-plus"></i> Grant Access
+                    </button>
+                </form>
+
+                <div style="margin-top:1rem;padding:0.75rem;background:var(--accent-blue-soft);border-radius:var(--radius-sm);font-size:0.78rem;color:var(--accent-blue);">
+                    <i class="bi bi-info-circle"></i>
+                    Uses MySQL GRANT to restrict phpMyAdmin visibility per user.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: DB Users Table -->
+    <div class="col-xl-8">
+        <div class="panel-card">
+            <div class="card-header">
+                <h5><i class="bi bi-person-lock"></i> MySQL Users</h5>
+                <span class="badge-panel badge-active">{{ db_users | length }} total</span>
+            </div>
+            <div class="card-body" style="padding:0;">
+                {% if db_users %}
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>MySQL Username</th>
+                                <th>Owner</th>
+                                <th>Granted Databases</th>
+                                <th>Created</th>
+                                <th class="actions-cell">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dbu in db_users %}
+                            <tr>
+                                <td>
+                                    <code style="color:var(--accent-purple);background:var(--accent-purple-soft);padding:0.15rem 0.5rem;border-radius:4px;font-size:0.8rem;">
+                                        {{ dbu.db_username }}
+                                    </code>
+                                </td>
+                                <td>{{ dbu.owner.username if dbu.owner else '—' }}</td>
+                                <td>
+                                    {% set granted_dbs = dbu.permissions.all() %}
+                                    {% if granted_dbs %}
+                                        {% for perm in granted_dbs %}
+                                        <div style="display:inline-flex;align-items:center;gap:0.3rem;margin:0.15rem 0;">
+                                            <span style="background:var(--accent-green-soft);color:var(--accent-green);padding:0.1rem 0.4rem;border-radius:3px;font-size:0.72rem;">
+                                                {{ perm.database.db_name if perm.database else '?' }}
+                                            </span>
+                                            <form action="{{ url_for('db_users.admin_revoke_db_access') }}" method="POST" style="display:inline;">
+                                                <input type="hidden" name="db_username" value="{{ dbu.db_username }}">
+                                                <input type="hidden" name="db_name" value="{{ perm.database.db_name if perm.database else '' }}">
+                                                <button type="submit" class="btn-panel btn-danger-panel" title="Revoke"
+                                                        style="padding:0 0.25rem;font-size:0.65rem;min-height:auto;line-height:1.2;"
+                                                        data-confirm="Revoke '{{ dbu.db_username }}' access to '{{ perm.database.db_name if perm.database else '' }}'?">
+                                                    <i class="bi bi-x"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span style="color:var(--text-dim);font-size:0.78rem;">No databases assigned</span>
+                                    {% endif %}
+                                </td>
+                                <td style="font-size:0.78rem;">{{ dbu.created_at.strftime('%b %d, %Y') if dbu.created_at else '—' }}</td>
+                                <td class="actions-cell">
+                                    <div style="display:flex;gap:0.35rem;">
+                                        <!-- Change Password -->
+                                        <button type="button" class="btn-panel btn-ghost btn-sm-panel"
+                                                data-bs-toggle="modal" data-bs-target="#dbuPwdModal_{{ loop.index }}" title="Change Password">
+                                            <i class="bi bi-key"></i>
+                                        </button>
+                                        <!-- Delete -->
+                                        <form action="{{ url_for('db_users.admin_delete_db_user', db_username=dbu.db_username) }}" method="POST">
+                                            <button type="submit" class="btn-panel btn-danger-panel btn-sm-panel"
+                                                    data-confirm="Drop MySQL user '{{ dbu.db_username }}'? All permissions will be revoked!" title="Delete">
+                                                <i class="bi bi-trash3"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    <!-- Password Modal -->
+                                    <div class="modal fade" id="dbuPwdModal_{{ loop.index }}" tabindex="-1">
+                                        <div class="modal-dialog modal-sm">
+                                            <div class="modal-content" style="background:var(--bg-card);border:1px solid var(--border-default);">
+                                                <form action="{{ url_for('db_users.admin_update_db_user_password', db_username=dbu.db_username) }}" method="POST">
+                                                    <div class="modal-header" style="border-bottom:1px solid var(--border-default);">
+                                                        <h6 class="modal-title">Change Password — {{ dbu.db_username }}</h6>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <input type="password" class="form-control" name="password" placeholder="New password (min 8)" required minlength="8">
+                                                    </div>
+                                                    <div class="modal-footer" style="border-top:1px solid var(--border-default);">
+                                                        <button type="submit" class="btn-panel btn-success-panel btn-sm-panel">
+                                                            <i class="bi bi-check-lg"></i> Update
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-person-lock"></i>
+                    <p>No MySQL users created yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

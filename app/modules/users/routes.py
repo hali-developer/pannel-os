@@ -133,16 +133,19 @@ def client_dashboard():
     from app.models.domain import Domain
     from app.models.ftp_account import FTPAccount
     from app.models.database import ClientDatabase
+    from app.models.db_user import DbUser
 
     domains = Domain.query.filter_by(user_id=user.id, is_active=True).all()
     ftp_accounts = FTPAccount.query.filter_by(user_id=user.id, is_active=True).all()
     databases = ClientDatabase.query.filter_by(user_id=user.id).all()
+    db_users = DbUser.query.filter_by(owner_user_id=user.id).all()
 
     return render_template('client/dashboard.html',
                            user=user,
                            domains=domains,
                            ftp_accounts=ftp_accounts,
-                           databases=databases)
+                           databases=databases,
+                           db_users=db_users)
 
 
 # ════════════════════════════════════════
@@ -187,10 +190,43 @@ def api_get_user(user_id):
     return jsonify({"user": user.to_dict()}), 200
 
 
-@users_bp.route('/api/users/<int:user_id>', methods=['DELETE'])
+@users_bp.route('/api/users/update', methods=['PUT'])
 @admin_required_api
-def api_delete_user(user_id):
+def api_update_user():
+    """API: Update a user."""
+    data = request.get_json(silent=True) or {}
+    user_id = data.get('user_id')
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+
+    kwargs = {}
+    if 'password' in data and data['password']:
+        kwargs['password'] = data['password']
+    if 'email' in data:
+        kwargs['email'] = data['email']
+    if 'is_active' in data:
+        kwargs['is_active'] = data['is_active']
+    if 'role' in data:
+        kwargs['role'] = data['role']
+
+    if not kwargs:
+        return jsonify({"error": "No fields to update"}), 400
+
+    ok, msg = user_svc.update_user(user_id, **kwargs)
+    if ok:
+        return jsonify({"message": msg}), 200
+    return jsonify({"error": msg}), 400
+
+
+@users_bp.route('/api/users/delete', methods=['DELETE'])
+@admin_required_api
+def api_delete_user():
     """API: Delete a user."""
+    data = request.get_json(silent=True) or {}
+    user_id = data.get('user_id')
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
+
     ok, msg = user_svc.delete_user(user_id)
     if ok:
         return jsonify({"message": msg}), 200

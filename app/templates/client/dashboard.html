@@ -6,21 +6,28 @@
 {% block content %}
 <!-- Welcome + Stats -->
 <div class="row g-3 mb-4">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="stat-card green">
             <div class="stat-icon"><i class="bi bi-globe2"></i></div>
             <div class="stat-value">{{ domains | length }}</div>
             <div class="stat-label">Active Domains</div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="stat-card blue">
             <div class="stat-icon"><i class="bi bi-database-fill"></i></div>
             <div class="stat-value">{{ databases | length }}</div>
             <div class="stat-label">MySQL Databases</div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
+        <div class="stat-card purple">
+            <div class="stat-icon"><i class="bi bi-person-lock"></i></div>
+            <div class="stat-value">{{ db_users | length }}</div>
+            <div class="stat-label">DB Users</div>
+        </div>
+    </div>
+    <div class="col-md-3">
         <div class="stat-card amber">
             <div class="stat-icon"><i class="bi bi-folder2-open"></i></div>
             <div class="stat-value">{{ ftp_accounts | length }}</div>
@@ -30,7 +37,7 @@
 </div>
 
 <div class="row g-3">
-    <!-- Left Column: Domains + Databases -->
+    <!-- Left Column: Domains + Databases + DB Users -->
     <div class="col-lg-7">
         <!-- My Domains -->
         <div class="panel-card mb-3">
@@ -76,7 +83,7 @@
         </div>
 
         <!-- My Databases -->
-        <div class="panel-card">
+        <div class="panel-card mb-3">
             <div class="card-header">
                 <h5><i class="bi bi-database-fill"></i> My Databases</h5>
                 <a href="/phpmyadmin" target="_blank" class="btn-panel btn-ghost btn-sm-panel">
@@ -94,6 +101,15 @@
                                     <span><i class="bi bi-person-fill"></i> {{ db.db_user }}</span>
                                     <span style="margin-left:0.75rem;"><i class="bi bi-hdd-network"></i> {{ db.db_host }}</span>
                                 </div>
+                                {% set granted = db.granted_users %}
+                                {% if granted %}
+                                <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem;">
+                                    <i class="bi bi-people-fill"></i> Also accessed by:
+                                    {% for gu in granted %}
+                                    <span style="background:var(--accent-purple-soft);color:var(--accent-purple);padding:0.05rem 0.35rem;border-radius:3px;">{{ gu }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
                             </div>
                             <form action="{{ url_for('database.client_delete_database', db_name=db.db_name) }}" method="POST">
                                 <button type="submit" class="btn-panel btn-danger-panel btn-sm-panel"
@@ -112,9 +128,81 @@
                 {% endif %}
             </div>
         </div>
+
+        <!-- My DB Users -->
+        <div class="panel-card">
+            <div class="card-header">
+                <h5><i class="bi bi-person-lock"></i> My DB Users</h5>
+            </div>
+            <div class="card-body">
+                {% if db_users %}
+                    {% for dbu in db_users %}
+                    <div style="background:rgba(0,0,0,0.2);padding:1rem;border-radius:var(--radius-sm);margin-bottom:0.75rem;border:1px solid var(--border-default);">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                            <div>
+                                <code style="color:var(--accent-purple);font-size:0.88rem;font-weight:600;">{{ dbu.db_username }}</code>
+                                <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem;">
+                                    {% set granted_dbs = dbu.permissions.all() %}
+                                    {% if granted_dbs %}
+                                        <i class="bi bi-database"></i> Access:
+                                        {% for perm in granted_dbs %}
+                                        <span style="background:var(--accent-green-soft);color:var(--accent-green);padding:0.05rem 0.35rem;border-radius:3px;">
+                                            {{ perm.database.db_name if perm.database else '?' }}
+                                        </span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span style="color:var(--text-dim);">No databases assigned</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:0.35rem;">
+                                <button type="button" class="btn-panel btn-ghost btn-sm-panel"
+                                        data-bs-toggle="modal" data-bs-target="#clientDbuPwd_{{ loop.index }}" title="Change Password">
+                                    <i class="bi bi-key"></i>
+                                </button>
+                                <form action="{{ url_for('db_users.client_delete_db_user', db_username=dbu.db_username) }}" method="POST">
+                                    <button type="submit" class="btn-panel btn-danger-panel btn-sm-panel"
+                                            data-confirm="Delete DB user '{{ dbu.db_username }}'?">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Password Modal -->
+                    <div class="modal fade" id="clientDbuPwd_{{ loop.index }}" tabindex="-1">
+                        <div class="modal-dialog modal-sm">
+                            <div class="modal-content" style="background:var(--bg-card);border:1px solid var(--border-default);">
+                                <form action="{{ url_for('db_users.client_update_db_user_password', db_username=dbu.db_username) }}" method="POST">
+                                    <div class="modal-header" style="border-bottom:1px solid var(--border-default);">
+                                        <h6 class="modal-title">Change Password — {{ dbu.db_username }}</h6>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <input type="password" class="form-control" name="password" placeholder="New password (min 8)" required minlength="8">
+                                    </div>
+                                    <div class="modal-footer" style="border-top:1px solid var(--border-default);">
+                                        <button type="submit" class="btn-panel btn-success-panel btn-sm-panel">
+                                            <i class="bi bi-check-lg"></i> Update
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state" style="padding:1.5rem;">
+                        <i class="bi bi-person-lock"></i>
+                        <p>No DB users. Create one on the right.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
 
-    <!-- Right Column: Create DB + FTP Info -->
+    <!-- Right Column: Create Forms + FTP Info -->
     <div class="col-lg-5">
         <!-- Create Database -->
         <div class="panel-card mb-3">
@@ -151,6 +239,67 @@
                 </form>
             </div>
         </div>
+
+        <!-- Create DB User -->
+        <div class="panel-card mb-3">
+            <div class="card-header">
+                <h5><i class="bi bi-person-plus-fill"></i> Create DB User</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('db_users.client_create_db_user') }}" method="POST" autocomplete="off">
+                    <div class="mb-3">
+                        <label class="form-label">MySQL Username</label>
+                        <div class="input-group">
+                            <span class="input-group-text" style="background:rgba(0,0,0,0.25);border:1px solid var(--border-default);color:var(--text-dim);font-size:0.8rem;">
+                                {{ user.username }}_
+                            </span>
+                            <input type="text" class="form-control" name="db_username" placeholder="dbuser" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">MySQL Password</label>
+                        <input type="password" class="form-control" name="password" placeholder="Min 8 characters" required minlength="8">
+                    </div>
+                    <button type="submit" class="btn-panel btn-success-panel w-100">
+                        <i class="bi bi-plus-lg"></i> Create DB User
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Grant DB Access -->
+        {% if db_users and databases %}
+        <div class="panel-card mb-3">
+            <div class="card-header">
+                <h5><i class="bi bi-shield-check"></i> Grant DB Access</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('db_users.client_grant_db_access') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">DB User</label>
+                        <select class="form-select" name="db_username" required>
+                            <option value="">Select DB user...</option>
+                            {% for dbu in db_users %}
+                            <option value="{{ dbu.db_username }}">{{ dbu.db_username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Database</label>
+                        <select class="form-select" name="db_name" required>
+                            <option value="">Select database...</option>
+                            {% for d in databases %}
+                            <option value="{{ d.db_name }}">{{ d.db_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-panel btn-success-panel w-100">
+                        <i class="bi bi-shield-plus"></i> Grant Access
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- FTP Info -->
         <div class="panel-card">
