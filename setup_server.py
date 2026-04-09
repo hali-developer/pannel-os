@@ -221,94 +221,94 @@ PANEL_VERSION=3.0.0
     run(f"cd {panel_dir} && {python_path} -c \"from app import create_app; create_app()\"")
     
     # Apache Setup
-#     run("a2enmod proxy proxy_http headers rewrite", check=False)
+    run("a2enmod proxy proxy_http headers rewrite", check=False)
     
-#     # Ensure phpMyAdmin is included in Apache
+   # Ensure phpMyAdmin is included in Apache
     if os.path.exists('/etc/phpmyadmin/apache.conf'):
         run("ln -sf /etc/phpmyadmin/apache.conf /etc/apache2/conf-available/phpmyadmin.conf", check=False)
         run("a2enconf phpmyadmin", check=False)
 
-#     panel_apache = f"""<VirtualHost *:8080>
-#     ServerName _
+    panel_apache = f"""<VirtualHost *:8080>
+    ServerName _
 
-#     # Exclude phpMyAdmin from proxying to Flask
-#     ProxyPass /phpmyadmin !
-#     Alias /phpmyadmin /usr/share/phpmyadmin
-#     <Directory /usr/share/phpmyadmin>
-#         Options FollowSymLinks
-#         DirectoryIndex index.php
-#         AllowOverride All
-#         Require all granted
-#     </Directory>
+    # Exclude phpMyAdmin from proxying to Flask
+    ProxyPass /phpmyadmin !
+    Alias /phpmyadmin /usr/share/phpmyadmin
+    <Directory /usr/share/phpmyadmin>
+        Options FollowSymLinks
+        DirectoryIndex index.php
+        AllowOverride All
+        Require all granted
+    </Directory>
 
-#     ProxyPreserveHost On
-#     ProxyPass / http://127.0.0.1:5000/
-#     ProxyPassReverse / http://127.0.0.1:5000/
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:5000/
+    ProxyPassReverse / http://127.0.0.1:5000/
 
-#     Alias /static {panel_dir}/static
-#     <Directory {panel_dir}/static>
-#         Require all granted
-#     </Directory>
+    Alias /static {panel_dir}/static
+    <Directory {panel_dir}/static>
+        Require all granted
+    </Directory>
 
-#     ErrorLog ${{APACHE_LOG_DIR}}/panel_error.log
-#     CustomLog ${{APACHE_LOG_DIR}}/panel_access.log combined
-# </VirtualHost>
-# """
-#     # Ensure port 8080 is configured
-#     run("echo 'Listen 8080' > /etc/apache2/conf-available/vps-panel-ports.conf", check=False)
-#     run("a2enconf vps-panel-ports", check=False)
-#     with open('/etc/apache2/sites-available/vps-panel.conf', 'w') as f:
-#         f.write(panel_apache)
+    ErrorLog ${{APACHE_LOG_DIR}}/panel_error.log
+    CustomLog ${{APACHE_LOG_DIR}}/panel_access.log combined
+</VirtualHost>
+"""
+    # Ensure port 8080 is configured
+    run("echo 'Listen 8080' > /etc/apache2/conf-available/vps-panel-ports.conf", check=False)
+    run("a2enconf vps-panel-ports", check=False)
+    with open('/etc/apache2/sites-available/vps-panel.conf', 'w') as f:
+        f.write(panel_apache)
 
-#     run("a2ensite vps-panel.conf", check=False)
-#     run("systemctl restart apache2", check=False)
+    run("a2ensite vps-panel.conf", check=False)
+    run("systemctl restart apache2", check=False)
 
     # Create systemd service for Gunicorn
-#     gunicorn_path = os.path.join(venv_path, 'bin', 'gunicorn')
-#     systemd_service = f"""[Unit]
-# Description=VPS Panel Gunicorn Service
-# After=network.target mysql.service
+    gunicorn_path = os.path.join(venv_path, 'bin', 'gunicorn')
+    systemd_service = f"""[Unit]
+Description=VPS Panel Gunicorn Service
+After=network.target mysql.service
 
-# [Service]
-# Type=simple
-# User=root
-# WorkingDirectory={panel_dir}
-# Environment="PATH={os.path.join(venv_path, 'bin')}"
-# ExecStart={gunicorn_path} --workers 3 --bind 127.0.0.1:5000 --timeout 120 run:app
-# Restart=always
-# RestartSec=5
+[Service]
+Type=simple
+User=root
+WorkingDirectory={panel_dir}
+Environment="PATH={os.path.join(venv_path, 'bin')}"
+ExecStart={gunicorn_path} --workers 3 --bind 127.0.0.1:5000 --timeout 120 run:app
+Restart=always
+RestartSec=5
 
-# [Install]
-# WantedBy=multi-user.target
-# """
-#     with open('/etc/systemd/system/vps-panel.service', 'w') as f:
-#         f.write(systemd_service)
-#     run("systemctl daemon-reload", check=False)
-#     run("systemctl enable vps-panel", check=False)
-#     run("systemctl start vps-panel", check=False)
+[Install]
+WantedBy=multi-user.target
+"""
+    with open('/etc/systemd/system/vps-panel.service', 'w') as f:
+        f.write(systemd_service)
+    run("systemctl daemon-reload", check=False)
+    run("systemctl enable vps-panel", check=False)
+    run("systemctl start vps-panel", check=False)
 
     # Copy phpMyAdmin config
-#     pma_config_src = os.path.join(panel_dir, 'phpmyadmin_config.inc.php')
-#     pma_config_dst = '/etc/phpmyadmin/conf.d/vps-panel.inc.php'
-#     if os.path.exists(pma_config_src):
-#         os.makedirs('/etc/phpmyadmin/conf.d', exist_ok=True)
-#         shutil.copy2(pma_config_src, pma_config_dst)
-#         print("  ✅ phpMyAdmin config deployed.")
+    pma_config_src = os.path.join(panel_dir, 'phpmyadmin_config.inc.php')
+    pma_config_dst = '/etc/phpmyadmin/conf.d/vps-panel.inc.php'
+    if os.path.exists(pma_config_src):
+        os.makedirs('/etc/phpmyadmin/conf.d', exist_ok=True)
+        shutil.copy2(pma_config_src, pma_config_dst)
+        print("  ✅ phpMyAdmin config deployed.")
 
-#     # Create sudoers rule for panel
-#     sudoers_rule = f"""# VPS Panel — allow www-data to manage system users and services
-# www-data ALL=(ALL) NOPASSWD: /usr/sbin/useradd, /usr/sbin/userdel, /usr/sbin/usermod
-# www-data ALL=(ALL) NOPASSWD: /usr/bin/chpasswd
-# www-data ALL=(ALL) NOPASSWD: /bin/chown, /bin/chmod, /bin/mkdir, /bin/rm, /bin/mv, /bin/cp, /bin/ln
-# www-data ALL=(ALL) NOPASSWD: /usr/sbin/a2ensite, /usr/sbin/a2dissite, /usr/sbin/apache2ctl
-# www-data ALL=(ALL) NOPASSWD: /bin/systemctl reload apache2, /bin/systemctl restart apache2
-# www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart vsftpd
-# root ALL=(ALL) NOPASSWD: ALL
-# """
-#     with open('/etc/sudoers.d/vps-panel', 'w') as f:
-#         f.write(sudoers_rule)
-#     run("chmod 440 /etc/sudoers.d/vps-panel", check=False)
-#     print("  ✅ Sudoers rules configured.")
+    # Create sudoers rule for panel
+    sudoers_rule = f"""# VPS Panel — allow www-data to manage system users and services
+www-data ALL=(ALL) NOPASSWD: /usr/sbin/useradd, /usr/sbin/userdel, /usr/sbin/usermod
+www-data ALL=(ALL) NOPASSWD: /usr/bin/chpasswd
+www-data ALL=(ALL) NOPASSWD: /bin/chown, /bin/chmod, /bin/mkdir, /bin/rm, /bin/mv, /bin/cp, /bin/ln
+www-data ALL=(ALL) NOPASSWD: /usr/sbin/a2ensite, /usr/sbin/a2dissite, /usr/sbin/apache2ctl
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl reload apache2, /bin/systemctl restart apache2
+www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart vsftpd
+root ALL=(ALL) NOPASSWD: ALL
+"""
+    with open('/etc/sudoers.d/vps-panel', 'w') as f:
+        f.write(sudoers_rule)
+    run("chmod 440 /etc/sudoers.d/vps-panel", check=False)
+    print("  ✅ Sudoers rules configured.")
 
     print("\n" + "=" * 60)
     print("  ✅ VPS Panel v3.0 setup complete!")
