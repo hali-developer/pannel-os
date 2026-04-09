@@ -64,7 +64,6 @@ def main():
 
     # ── Step 2: MySQL Setup (Panel & Admin) ──
     print("\n[2/7] Configuring MySQL...")
-
     # 2.1 Admin Account (for provisioning)
     mysql_admin_user = input("  MySQL panel admin username [pannel_admin]: ").strip() or "root"
     mysql_admin_pass = getpass.getpass(f"  MySQL password for '{mysql_admin_user}': ") or "XcF@2oC1Dv11yqXFRff"
