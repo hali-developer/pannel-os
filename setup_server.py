@@ -55,11 +55,27 @@ def main():
     # ── Step 1: System Packages ──
     print("\n[1/7] Installing system packages...")
     run(["apt", "update", "-y"])
-    run("apt install -y apache2 mysql-server vsftpd "
-        "libapache2-mod-php php-mysql php-mbstring php-zip php-gd php-json php-curl "
-        "phpmyadmin python3-pip python3-venv python3-dev "
-        "certbot python3-certbot-apache "
-        "libmysqlclient-dev build-essential")
+    run([
+        'apt', 'install', '-y',
+        'apache2',
+        'mysql-server',
+        'vsftpd',
+        'libapache2-mod-php',
+        'php-mysql',
+        'php-mbstring',
+        'php-zip',
+        'php-gd',
+        'php-json',
+        'php-curl',
+        'phpmyadmin',
+        'python3-pip',
+        'python3-venv',
+        'python3-dev',
+        'certbot',
+        'python3-certbot-apache',
+        'libmysqlclient-dev',
+        'build-essential'
+    ])
     print("  ✅ System packages installed.")
 
     # ── Step 2: MySQL Setup (Panel & Admin) ──
