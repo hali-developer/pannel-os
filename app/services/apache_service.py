@@ -83,12 +83,12 @@ class ApacheService:
             with os.fdopen(fd, 'w') as f:
                 f.write(config_content)
 
-            ok, msg = run(['sudo', '/bin/mv', temp_path, config_path])
+            ok, msg = run(['/bin/mv', temp_path, config_path])
             if not ok:
                 return False, f"Failed to write config: {msg}"
 
-            run(['sudo', '/bin/chown', 'root:root', config_path])
-            run(['sudo', '/bin/chmod', '644', config_path])
+            run(['/bin/chown', 'root:root', config_path])
+            run(['/bin/chmod', '644', config_path])
 
             logger.info(f"Apache config written: {config_path}")
             return True, config_path
@@ -99,7 +99,7 @@ class ApacheService:
     @classmethod
     def enable_site(cls, domain: str) -> tuple[bool, str]:
         """Activate the domain using a2ensite."""
-        ok, msg = run(['sudo', '/usr/sbin/a2ensite', f"{domain}.conf"])
+        ok, msg = run(['/usr/sbin/a2ensite', f"{domain}.conf"])
         if not ok:
             return False, f"Failed to enable site: {msg}"
 
@@ -109,7 +109,7 @@ class ApacheService:
     @classmethod
     def disable_site(cls, domain: str) -> tuple[bool, str]:
         """Deactivate the domain using a2dissite."""
-        ok, msg = run(['sudo', '/usr/sbin/a2dissite', f"{domain}.conf"])
+        ok, msg = run(['/usr/sbin/a2dissite', f"{domain}.conf"])
         if not ok:
             # Maybe it's already disabled
             return True, f"Site '{domain}' already disabled."
@@ -125,7 +125,7 @@ class ApacheService:
         sites_available = cls._get_sites_available()
         config_path = os.path.join(sites_available, f"{domain}.conf")
 
-        ok, msg = run(['sudo', '/bin/rm', '-f', config_path])
+        ok, msg = run(['/bin/rm', '-f', config_path])
         if not ok:
             return False, f"Failed to remove config: {msg}"
 
@@ -135,7 +135,7 @@ class ApacheService:
     @classmethod
     def test_config(cls) -> tuple[bool, str]:
         """Run apache2ctl configtest to validate configuration."""
-        ok, msg = run(['sudo', '/usr/sbin/apache2ctl', 'configtest'])
+        ok, msg = run(['/usr/sbin/apache2ctl', 'configtest'])
         if ok:
             logger.info("Apache config test passed.")
         else:
@@ -149,7 +149,7 @@ class ApacheService:
         if not ok:
             return False, f"Config test failed, not reloading: {msg}"
 
-        ok, msg = run(['sudo', '/bin/systemctl', 'reload', 'apache2'])
+        ok, msg = run(['/bin/systemctl', 'reload', 'apache2'])
         if ok:
             logger.info("Apache reloaded successfully.")
         else:
