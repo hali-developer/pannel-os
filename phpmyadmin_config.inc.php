@@ -22,7 +22,7 @@ $cfg['Servers'][$i]['AllowNoPassword'] = false;
  * Each client user is already restricted by MySQL GRANT to their own db,
  * but this adds a UI-level safety net.
  */
-$cfg['Servers'][$i]['hide_db'] = '^(information_schema|performance_schema|mysql|phpmyadmin|sys|pannel_db)$';
+// $cfg['Servers'][$i]['hide_db'] = '^(information_schema|performance_schema|mysql|phpmyadmin|sys|pannel_db)$';
 
 /**
  * UI Settings
