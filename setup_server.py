@@ -66,13 +66,13 @@ def main():
     print("\n[2/7] Configuring MySQL...")
 
     # 2.1 Admin Account (for provisioning)
-    mysql_admin_user = input("  MySQL panel admin username [pannel_admin]: ").strip() or "pannel_admin"
-    mysql_admin_pass = getpass.getpass(f"  MySQL password for '{mysql_admin_user}': ") or "StrongMySQLPass123!"
+    mysql_admin_user = input("  MySQL panel admin username [pannel_admin]: ").strip() or "root"
+    mysql_admin_pass = getpass.getpass(f"  MySQL password for '{mysql_admin_user}': ") or "XcF@2oC1Dv11yqXFRff"
     
     # 2.2 Panel Metadata Database
     pannel_db = input("  Panel internal database name [pannel_db]: ").strip() or "pannel_db"
-    pannel_user = input("  Panel internal DB user [pannel_user]: ").strip() or "pannel_user"
-    pannel_pass = getpass.getpass(f"  Panel internal DB password: ") or "StrongPanelPass123!"
+    pannel_user = input("  Panel internal DB user [pannel_user]: ").strip() or "admin"
+    pannel_pass = getpass.getpass(f"  Panel internal DB password: ") or "StrongPassword123!"
 
     mysql_cmds = f"""
 -- Create provisioning admin
