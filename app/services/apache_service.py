@@ -4,6 +4,7 @@ VPS Panel — Apache2 Configuration Service
 Generates, enables, disables, and reloads Apache VirtualHosts
 for client domains.
 """
+import shutil
 import os
 import logging
 import tempfile
@@ -83,12 +84,9 @@ class ApacheService:
             with os.fdopen(fd, 'w') as f:
                 f.write(config_content)
 
-            ok, msg = run(['/bin/mv', temp_path, config_path])
-            if not ok:
-                return False, f"Failed to write config: {msg}"
-
-            run(['/bin/chown', 'root:root', config_path])
-            run(['/bin/chmod', '644', config_path])
+            shutil.move(temp_path, config_path)
+            os.chown(config_path, 0, 0)
+            os.chmod(config_path, 0o644)
 
             logger.info(f"Apache config written: {config_path}")
             return True, config_path
