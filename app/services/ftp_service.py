@@ -38,7 +38,7 @@ class FTPSystemService:
         Shell is set to /usr/sbin/nologin to prevent SSH access.
         """
         ok, msg = safe_run([
-            'sudo', 'useradd',
+            'sudo', '/usr/sbin/useradd',
             '-m',
             '-d', home_dir,
             '-s', '/usr/sbin/nologin',
@@ -53,7 +53,7 @@ class FTPSystemService:
     @classmethod
     def delete_system_user(cls, username: str) -> tuple[bool, str]:
         """Delete a system user and their home directory."""
-        ok, msg = safe_run(['sudo', 'userdel', '-r', username])
+        ok, msg = safe_run(['sudo', '/usr/sbin/userdel', '-r', username])
         if not ok:
             return False, f"Failed to delete system user: {msg}"
 
@@ -64,7 +64,7 @@ class FTPSystemService:
     def set_password(cls, username: str, password: str) -> tuple[bool, str]:
         """Set the password for a system user."""
         ok, msg = safe_run(
-            ['sudo', 'chpasswd'],
+            ['sudo', '/usr/sbin/chpasswd'],
             input_data=f"{username}:{password}"
         )
         if not ok:
@@ -88,7 +88,7 @@ class FTPSystemService:
         ]
 
         for d in dirs:
-            ok, msg = safe_run(['sudo', 'mkdir', '-p', d])
+            ok, msg = safe_run(['sudo', '/bin/mkdir', '-p', d])
             if not ok:
                 return False, f"Failed to create directory {d}: {msg}"
 
@@ -131,18 +131,18 @@ class FTPSystemService:
     </div>
 </body>
 </html>""")
-            safe_run(['sudo', 'mv', temp_path, default_index])
+            safe_run(['sudo', '/bin/mv', temp_path, default_index])
         except Exception:
             pass
 
         # Set ownership: user owns everything inside
-        ok, msg = safe_run(['sudo', 'chown', '-R', f'{username}:{username}', home_dir])
+        ok, msg = safe_run(['sudo', '/bin/chown', '-R', f'{username}:{username}', home_dir])
         if not ok:
             return False, f"Failed to set ownership: {msg}"
 
         # Set permissions: 750 for home, 755 for public_html
-        safe_run(['sudo', 'chmod', '750', home_dir])
-        safe_run(['sudo', 'chmod', '755', os.path.join(home_dir, 'public_html')])
+        safe_run(['sudo', '/bin/chmod', '750', home_dir])
+        safe_run(['sudo', '/bin/chmod', '755', os.path.join(home_dir, 'public_html')])
 
         logger.info(f"Directories provisioned for {username}: {home_dir}")
         return True, "Directories created and permissions set."
@@ -153,7 +153,7 @@ class FTPSystemService:
         conf_dir = cls._get_ftp_conf_dir()
 
         # Ensure config directory exists
-        safe_run(['sudo', 'mkdir', '-p', conf_dir])
+        safe_run(['sudo', '/bin/mkdir', '-p', conf_dir])
 
         vsftpd_config = f"local_root={home_dir}\n"
 
@@ -164,7 +164,7 @@ class FTPSystemService:
                 f.write(vsftpd_config)
 
             conf_path = os.path.join(conf_dir, username)
-            ok, msg = safe_run(['sudo', 'mv', temp_path, conf_path])
+            ok, msg = safe_run(['sudo', '/bin/mv', temp_path, conf_path])
             if not ok:
                 return False, f"Failed to write vsftpd config: {msg}"
 
@@ -180,7 +180,7 @@ class FTPSystemService:
         conf_dir = cls._get_ftp_conf_dir()
         conf_path = os.path.join(conf_dir, username)
 
-        ok, msg = safe_run(['sudo', 'rm', '-f', conf_path])
+        ok, msg = safe_run(['sudo', '/bin/rm', '-f', conf_path])
         if not ok:
             return False, f"Failed to remove vsftpd config: {msg}"
 

@@ -274,7 +274,7 @@ Type=simple
 User=root
 WorkingDirectory={panel_dir}
 Environment="PATH={os.path.join(venv_path, 'bin')}"
-ExecStart={gunicorn_path} --workers 3 --bind 0.0.0.0:5246 --timeout 120 run:app
+ExecStart={gunicorn_path} --workers 3 --bind 127.0.0.1:5000 --timeout 120 run:app
 Restart=always
 RestartSec=5
 
