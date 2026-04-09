@@ -27,7 +27,7 @@ import tempfile
 def run(cmd, check=True):
     """Run command safely (no shell=True)."""
     print(f"  → {' '.join(cmd)}")
-    return subprocess.run(cmd, check=check)
+    return subprocess.run(cmd, shell=False, check=check)
 
 
 def generate_secret(length=64):
