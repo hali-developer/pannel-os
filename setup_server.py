@@ -274,7 +274,7 @@ Type=simple
 User=root
 WorkingDirectory={panel_dir}
 Environment="PATH={os.path.join(venv_path, 'bin')}"
-ExecStart={gunicorn_path} --workers 3 --bind 127.0.0.1:5000 --timeout 120 run:app
+ExecStart={gunicorn_path} --workers 3 --bind 0.0.0.0:5246 --timeout 120 run:app
 Restart=always
 RestartSec=5
 
@@ -314,8 +314,8 @@ root ALL=(ALL) NOPASSWD: ALL
     print("  ✅ VPS Panel v3.0 setup complete!")
     print("=" * 60)
     print(f"""
-  Panel URL:      http://YOUR_IP:8080
-  phpMyAdmin:     http://YOUR_IP:8080/phpmyadmin
+  Panel URL:      http://YOUR_IP:5246
+  phpMyAdmin:     http://YOUR_IP:5246/phpmyadmin
   
   Default login:  admin / admin
   
