@@ -25,9 +25,9 @@ import tempfile
 
 
 def run(cmd, check=True):
-    """Run a shell command."""
-    print(f"  → {cmd}")
-    return subprocess.run(cmd, shell=True, check=check)
+    """Run command safely (no shell=True)."""
+    print(f"  → {' '.join(cmd)}")
+    return subprocess.run(cmd, check=check)
 
 
 def generate_secret(length=64):
@@ -54,12 +54,12 @@ def main():
 
     # ── Step 1: System Packages ──
     print("\n[1/7] Installing system packages...")
-    run("apt update -y")
-    run("apt install -y apache2 mysql-server vsftpd "
-        "libapache2-mod-php php-mysql php-mbstring php-zip php-gd php-json php-curl "
-        "phpmyadmin python3-pip python3-venv python3-dev "
-        "certbot python3-certbot-apache "
-        "libmysqlclient-dev build-essential")
+    run(["apt", "update", "-y"])
+    run(["apt", "install", "-y", "apache2", "mysql-server", "vsftpd ",
+        "libapache2-mod-php", "php-mysql", "php-mbstring", "php-zip", "php-gd", "php-json", "php-curl ",
+        "phpmyadmin", "python3-pip", "python3-venv", "python3-dev ",
+        "certbot", "python3-certbot-apache ",
+        "libmysqlclient-dev", "build-essential"])
     print("  ✅ System packages installed.")
 
     # ── Step 2: MySQL Setup (Panel & Admin) ──
@@ -132,8 +132,8 @@ user_config_dir=/etc/vsftpd_user_conf
     os.makedirs('/etc/vsftpd_user_conf', exist_ok=True)
     if not os.path.exists('/etc/vsftpd.userlist'):
         with open('/etc/vsftpd.userlist', 'w') as f: f.write('')
-    run("systemctl restart vsftpd", check=False)
-    run("systemctl enable vsftpd", check=False)
+    run(["systemctl", "restart", "vsftpd"], check=False)
+    run(["systemctl", "enable", "vsftpd"], check=False)
     print("  ✅ vsftpd configured with chroot + local users.")
 
     # ── Step 4: Generate Fernet Key ──
@@ -191,8 +191,8 @@ PANEL_VERSION=3.0.0
         run(f"python3 -m venv {venv_path}")
 
     pip_path = os.path.join(venv_path, 'bin', 'pip')
-    run(f"{pip_path} install --upgrade pip")
-    run(f"{pip_path} install -r {os.path.join(panel_dir, 'requirements.txt')}")
+    run([pip_path, "install", "--upgrade", "pip"])
+    run([pip_path, "install", "-r", os.path.join(panel_dir, "requirements.txt")])
     print("  ✅ Python dependencies installed.")
 
     # Regenerate Fernet key if it was deferred
@@ -218,15 +218,15 @@ PANEL_VERSION=3.0.0
 
     python_path = os.path.join(venv_path, 'bin', 'python')
     # Initialize database
-    run(f"cd {panel_dir} && {python_path} -c \"from app import create_app; create_app()\"")
+    run(["bash", "-c", f"cd {panel_dir} && {python_path} -c \"from app import create_app; create_app()\""])
     
     # Apache Setup
-    run("a2enmod proxy proxy_http headers rewrite", check=False)
+    run(["a2enmod", "proxy", "proxy_http", "headers", "rewrite"], check=False)
     
    # Ensure phpMyAdmin is included in Apache
     if os.path.exists('/etc/phpmyadmin/apache.conf'):
-        run("ln -sf /etc/phpmyadmin/apache.conf /etc/apache2/conf-available/phpmyadmin.conf", check=False)
-        run("a2enconf phpmyadmin", check=False)
+        run(["ln", "-sf", "/etc/phpmyadmin/apache.conf", "/etc/apache2/conf-available/phpmyadmin.conf"], check=False)
+        run(["a2enconf", "phpmyadmin"], check=False)
 
     panel_apache = f"""<VirtualHost *:8080>
     ServerName _
@@ -255,13 +255,13 @@ PANEL_VERSION=3.0.0
 </VirtualHost>
 """
     # Ensure port 8080 is configured
-    run("echo 'Listen 8080' > /etc/apache2/conf-available/vps-panel-ports.conf", check=False)
-    run("a2enconf vps-panel-ports", check=False)
+    run(["echo", "Listen 8080", ">", "/etc/apache2/conf-available/vps-panel-ports.conf"], check=False)
+    run(["a2enconf", "vps-panel-ports"], check=False)
     with open('/etc/apache2/sites-available/vps-panel.conf', 'w') as f:
         f.write(panel_apache)
 
-    run("a2ensite vps-panel.conf", check=False)
-    run("systemctl restart apache2", check=False)
+    run(["a2ensite", "vps-panel.conf"], check=False)
+    run(["systemctl", "restart", "apache2"], check=False)
 
     # Create systemd service for Gunicorn
     gunicorn_path = os.path.join(venv_path, 'bin', 'gunicorn')
@@ -271,9 +271,10 @@ After=network.target mysql.service
 
 [Service]
 Type=simple
-User=root
+User=www-data
+Group=www-data
 WorkingDirectory={panel_dir}
-Environment="PATH={os.path.join(venv_path, 'bin')}"
+Environment="PATH={venv_path}/bin"
 ExecStart={gunicorn_path} --workers 3 --bind 127.0.0.1:5000 --timeout 120 run:app
 Restart=always
 RestartSec=5
@@ -283,9 +284,9 @@ WantedBy=multi-user.target
 """
     with open('/etc/systemd/system/vps-panel.service', 'w') as f:
         f.write(systemd_service)
-    run("systemctl daemon-reload", check=False)
-    run("systemctl enable vps-panel", check=False)
-    run("systemctl start vps-panel", check=False)
+    run(["systemctl", "daemon-reload"], check=False)
+    run(["systemctl", "enable", "vps-panel"], check=False)
+    run(["systemctl", "start", "vps-panel"], check=False)
 
     # Copy phpMyAdmin config
     pma_config_src = os.path.join(panel_dir, 'phpmyadmin_config.inc.php')
@@ -303,11 +304,25 @@ www-data ALL=(ALL) NOPASSWD: /bin/chown, /bin/chmod, /bin/mkdir, /bin/rm, /bin/m
 www-data ALL=(ALL) NOPASSWD: /usr/sbin/a2ensite, /usr/sbin/a2dissite, /usr/sbin/apache2ctl
 www-data ALL=(ALL) NOPASSWD: /bin/systemctl reload apache2, /bin/systemctl restart apache2
 www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart vsftpd
-root ALL=(ALL) NOPASSWD: ALL
+www-data ALL=(ALL) NOPASSWD: \
+/usr/sbin/useradd, \
+/usr/sbin/userdel, \
+/usr/sbin/usermod, \
+/usr/sbin/chpasswd, \
+/bin/chown, \
+/bin/chmod, \
+/bin/mkdir, \
+/bin/rm, \
+/bin/mv, \
+/usr/sbin/a2ensite, \
+/usr/sbin/a2dissite, \
+/usr/sbin/apache2ctl, \
+/bin/systemctl reload apache2, \
+/bin/systemctl restart vsftpd
 """
     with open('/etc/sudoers.d/vps-panel', 'w') as f:
         f.write(sudoers_rule)
-    run("chmod 440 /etc/sudoers.d/vps-panel", check=False)
+    run(["chmod", "440", "/etc/sudoers.d/vps-panel"], check=False)
     print("  ✅ Sudoers rules configured.")
 
     print("\n" + "=" * 60)
