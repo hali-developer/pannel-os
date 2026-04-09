@@ -224,9 +224,9 @@ PANEL_VERSION=3.0.0
 #     run("a2enmod proxy proxy_http headers rewrite", check=False)
     
 #     # Ensure phpMyAdmin is included in Apache
-#     if os.path.exists('/etc/phpmyadmin/apache.conf'):
-#         run("ln -sf /etc/phpmyadmin/apache.conf /etc/apache2/conf-available/phpmyadmin.conf", check=False)
-#         run("a2enconf phpmyadmin", check=False)
+    if os.path.exists('/etc/phpmyadmin/apache.conf'):
+        run("ln -sf /etc/phpmyadmin/apache.conf /etc/apache2/conf-available/phpmyadmin.conf", check=False)
+        run("a2enconf phpmyadmin", check=False)
 
 #     panel_apache = f"""<VirtualHost *:8080>
 #     ServerName _
