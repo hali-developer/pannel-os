@@ -61,6 +61,7 @@ def main():
         'openssl',
         'mysql-server',
         'proftpd-mod-mysql',
+        'proftpd-mod-crypto',
         'libapache2-mod-php',
         'php-mysql',
         'php-mbstring',
@@ -168,7 +169,7 @@ DefaultRoot ~
     # os.makedirs('/etc/proftpd/conf.d', exist_ok=True)
     # if not os.path.exists('/etc/proftpd.userlist'):
     #     with open('/etc/proftpd.userlist', 'w') as f: f.write('')
-    # run(["systemctl", "restart", "proftpd"], check=False)
+    run(["systemctl", "restart", "proftpd"], check=False)
     print("  ✅ proftpd configured with chroot + local users.")
 
     # ── Step 4: Generate Fernet Key ──
