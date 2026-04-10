@@ -114,15 +114,15 @@ def api_create_ftp():
 def api_change_ftp_password():
     """API: Change FTP password."""
     data = request.get_json(silent=True) or {}
-    ftp_username = (data.get('ftp_username') or '').strip()
+    username = (data.get('username') or '').strip()
     password = data.get('password') or ''
 
-    if not ftp_username:
-        return jsonify({"error": "ftp_username is required"}), 400
+    if not username:
+        return jsonify({"error": "username is required"}), 400
     if len(password) < 8:
         return jsonify({"error": "Password must be at least 8 characters"}), 400
 
-    ok, msg = ftp_svc.change_ftp_password(ftp_username, password)
+    ok, msg = ftp_svc.change_ftp_password(username, password)
     if ok:
         return jsonify({"message": msg}), 200
     return jsonify({"error": msg}), 400
@@ -133,11 +133,11 @@ def api_change_ftp_password():
 def api_delete_ftp():
     """API: Delete FTP account."""
     data = request.get_json(silent=True) or {}
-    ftp_username = data.get('ftp_username', '').strip()
-    if not ftp_username:
-        return jsonify({"error": "ftp_username is required"}), 400
+    username = data.get('username', '').strip()
+    if not username:
+        return jsonify({"error": "username is required"}), 400
 
-    ok, msg = ftp_svc.delete_ftp_account(ftp_username)
+    ok, msg = ftp_svc.delete_ftp_account(username)
     if ok:
         return jsonify({"message": msg}), 200
     return jsonify({"error": msg}), 400
