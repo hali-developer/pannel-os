@@ -208,10 +208,6 @@ MYSQL_ADMIN_PASSWORD={mysql_admin_pass}
 
 DB_PASSWORD_ENCRYPTION_KEY={fernet_key}
 
-
-APACHE_SITES_AVAILABLE=/etc/apache2/sites-available
-APACHE_SITES_ENABLED=/etc/apache2/sites-enabled
-
 WEB_ROOT=/var/www
 LOG_LEVEL=INFO
 LOG_FILE=/var/log/pannel/panel.log

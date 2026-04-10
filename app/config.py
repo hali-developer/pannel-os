@@ -43,9 +43,7 @@ class BaseConfig:
         'max_overflow': 20,
     }
 
-    # Apache
-    APACHE_SITES_AVAILABLE = os.environ.get('APACHE_SITES_AVAILABLE', '/etc/apache2/sites-available')
-    APACHE_SITES_ENABLED = os.environ.get('APACHE_SITES_ENABLED', '/etc/apache2/sites-enabled')
+
 
     # Web Root
     WEB_ROOT = os.environ.get('WEB_ROOT', '/var/www')
