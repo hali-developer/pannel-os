@@ -141,12 +141,12 @@ LoadModule mod_tls.c
 <IfModule mod_sql.c>
     SQLBackend mysql
     SQLAuthTypes Plaintext Crypt
-    SQLAuthenticate users
+    SQLAuthenticate ftp_accounts
 
-    SQLConnectInfo ftp_panel@localhost root password
+    SQLConnectInfo {pannel_user}@localhost {mysql_admin_user} {mysql_admin_pass}
 
-    SQLUserInfo ftp_users username password uid gid homedir
-    SQLUserWhereClause "active=1"
+    SQLUserInfo ftp_accounts username password home_directory
+    SQLUserWhereClause "is_active=1"
 
     RequireValidShell off
 </IfModule>
