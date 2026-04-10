@@ -381,53 +381,70 @@ fi
 
 echo "Creating directory..."
 mkdir -p "$WEBROOT"
-
 chown -R www-data:www-data "$BASE_PATH/$DOMAIN"
 chmod -R 755 "$BASE_PATH/$DOMAIN"
 
-echo "Creating Apache config..."
+# Ensure Port 80 is open and site is enabled for the challenge
+echo "Creating temporary Port 80 config for validation..."
 cat > "$APACHE_CONF" <<EOL
 <VirtualHost *:80>
     ServerName $DOMAIN
     ServerAlias www.$DOMAIN
     DocumentRoot $WEBROOT
+</VirtualHost>
+EOL
 
-    <Directory $WEBROOT>
+a2ensite "$DOMAIN.conf"
+systemctl reload apache2
+
+echo "Requesting Certificate..."
+certbot certonly --webroot -w "$WEBROOT" -d "$DOMAIN" -d "www.$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
+
+echo "Updating Apache config with SSL..."
+# Use 'EOL' to prevent local variable expansion
+cat > "$APACHE_CONF" <<'EOL'
+<VirtualHost *:80>
+    ServerName $DOMAIN
+    ServerAlias www.$DOMAIN
+    DocumentRoot /var/www/$DOMAIN/public_html
+    # Redirect all traffic to HTTPS
+    RewriteEngine On
+    RewriteCond %{HTTPS} off
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName $DOMAIN
+    ServerAlias www.$DOMAIN
+    DocumentRoot /var/www/$DOMAIN/public_html
+
+    SSLEngine on
+    SSLCertificateFile /etc/letsencrypt/live/$DOMAIN/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/$DOMAIN/privkey.pem
+
+    <Directory /var/www/$DOMAIN/public_html>
         AllowOverride All
         Require all granted
     </Directory>
 
-    ErrorLog \${APACHE_LOG_DIR}/$DOMAIN_error.log
-    CustomLog \${APACHE_LOG_DIR}/$DOMAIN_access.log combined
+    ErrorLog ${APACHE_LOG_DIR}/DOMAIN_HOLDER_error.log
+    CustomLog ${APACHE_LOG_DIR}/DOMAIN_HOLDER_access.log combined
 </VirtualHost>
 EOL
 
-echo "Enabling site..."
-a2ensite "$DOMAIN.conf"
+# Replace the placeholder with the actual domain
+sed -i "s/DOMAIN_HOLDER/$DOMAIN/g" "$APACHE_CONF"
 
-echo "Testing Apache config..."
-apache2ctl configtest
-if [ $? -ne 0 ]; then
-  echo "Apache config test failed"
-  exit 1
-fi
-
-certbot --apache -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos -m ssl@$DOMAIN --redirect
-
-echo "Reloading Apache..."
-systemctl reload apache2
+a2enmod ssl rewrite
+apache2ctl configtest && systemctl reload apache2
 
 echo "Done ✅"
-exit 0
         """)
     run(["chmod", "+x", "/usr/local/bin/add_domain.sh"], check=False)
 
     with open('/usr/local/bin/remove_domain.sh', 'w') as f:
         f.write("""#!/bin/bash
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
 DOMAIN=$1
-BASE_PATH="/var/www"
 APACHE_CONF="/etc/apache2/sites-available/$DOMAIN.conf"
 
 if [ -z "$DOMAIN" ]; then
@@ -435,28 +452,18 @@ if [ -z "$DOMAIN" ]; then
   exit 1
 fi
 
-echo "Disabling site $DOMAIN..."
-if [ -f "$APACHE_CONF" ]; then
-    a2dissite "$DOMAIN.conf"
-fi
+echo "Disabling site and removing certificates..."
+a2dissite "$DOMAIN.conf"
 
-echo "Removing Apache config..."
+# Remove the actual SSL certs from Let's Encrypt
+certbot delete --cert-name "$DOMAIN"
+
 rm -f "$APACHE_CONF"
-rm -f "/etc/apache2/sites-enabled/$DOMAIN.conf"
+rm -rf "/var/www/$DOMAIN"
 
-echo "Removing web directory..."
-if [ -d "$BASE_PATH/$DOMAIN" ]; then
-    rm -rf "$BASE_PATH/$DOMAIN"
-fi
-
-echo "Testing Apache config..."
-apache2ctl configtest
-
-echo "Reloading Apache..."
-systemctl reload apache2
+apache2ctl configtest && systemctl reload apache2
 
 echo "Domain $DOMAIN removed successfully ✅"
-exit 0
     """)
 
     # Make it executable
