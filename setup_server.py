@@ -135,7 +135,7 @@ FLUSH PRIVILEGES;
         "-keyout", "/etc/ssl/private/proftpd.key",
         "-out", "/etc/ssl/certs/proftpd.crt"
     ], check=False)
-    ftpd_conf = """LoadModule mod_sql.c /usr/lib/proftpd/mod_sql.so
+    ftpd_conf = f"""LoadModule mod_sql.c /usr/lib/proftpd/mod_sql.so
 LoadModule mod_sql_mysql.c /usr/lib/proftpd/mod_sql_mysql.so
 LoadModule mod_tls.c /usr/lib/proftpd/mod_tls.so
 
