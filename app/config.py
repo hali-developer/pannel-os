@@ -43,10 +43,6 @@ class BaseConfig:
         'max_overflow': 20,
     }
 
-    # FTP
-    FTP_METHOD = os.environ.get('FTP_METHOD', 'vsftpd')
-    FTP_USER_CONF_DIR = os.environ.get('FTP_USER_CONF_DIR', '/etc/vsftpd_user_conf')
-
     # Apache
     APACHE_SITES_AVAILABLE = os.environ.get('APACHE_SITES_AVAILABLE', '/etc/apache2/sites-available')
     APACHE_SITES_ENABLED = os.environ.get('APACHE_SITES_ENABLED', '/etc/apache2/sites-enabled')

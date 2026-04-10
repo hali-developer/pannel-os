@@ -148,7 +148,7 @@ LoadModule mod_tls.c /usr/lib/proftpd/mod_tls.so
     SQLMinUserUID 30
     SQLMaxClientsPerUser 10
     SQLMaxClients 100
-    
+
     SQLConnectInfo {pannel_db}@localhost {pannel_user} {pannel_pass}
 
     SQLUserInfo ftp_accounts username password NULL NULL home_directory NULL
@@ -210,8 +210,6 @@ MYSQL_ADMIN_PASSWORD={mysql_admin_pass}
 
 DB_PASSWORD_ENCRYPTION_KEY={fernet_key}
 
-FTP_METHOD=vsftpd
-FTP_USER_CONF_DIR=/etc/vsftpd_user_conf
 
 APACHE_SITES_AVAILABLE=/etc/apache2/sites-available
 APACHE_SITES_ENABLED=/etc/apache2/sites-enabled
