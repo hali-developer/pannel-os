@@ -386,7 +386,7 @@ chown -R www-data:www-data "$BASE_PATH/$DOMAIN"
 chmod -R 755 "$BASE_PATH/$DOMAIN"
 
 echo "Requesting Certificate..."
-certbot certonly --webroot -w "$WEBROOT" -d "$DOMAIN" -d "www.$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
+# certbot certonly --webroot -w "$WEBROOT" -d "$DOMAIN" -d "www.$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
 
 echo "Creating Apache config..."
 cat > "$APACHE_CONF" <<EOL
