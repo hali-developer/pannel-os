@@ -124,7 +124,16 @@ FLUSH PRIVILEGES;
 
     # ── Step 3: proftpd Configuration ──
     print("\n[3/7] Configuring proftpd...")
-    run(["openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/proftpd.key -out /etc/ssl/certs/proftpd.crt"], check=False)
+    run([
+        "openssl",
+        "req",
+        "-x509",
+        "-nodes",
+        "-days", "365",
+        "-newkey", "rsa:2048",
+        "-keyout", "/etc/ssl/private/proftpd.key",
+        "-out", "/etc/ssl/certs/proftpd.crt"
+    ], check=False)
     ftpd_conf = """LoadModule mod_sql.c
 LoadModule mod_sql_mysql.c
 LoadModule mod_tls.c
