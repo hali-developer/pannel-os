@@ -135,18 +135,18 @@ FLUSH PRIVILEGES;
         "-keyout", "/etc/ssl/private/proftpd.key",
         "-out", "/etc/ssl/certs/proftpd.crt"
     ], check=False)
-    ftpd_conf = """LoadModule mod_sql.c
-LoadModule mod_sql_mysql.c
-LoadModule mod_tls.c
+    ftpd_conf = """LoadModule mod_sql.c /usr/lib/proftpd/mod_sql.so
+LoadModule mod_sql_mysql.c /usr/lib/proftpd/mod_sql_mysql.so
+LoadModule mod_tls.c /usr/lib/proftpd/mod_tls.so
 
 <IfModule mod_sql.c>
     SQLBackend mysql
-    SQLAuthTypes Plaintext Crypt
-    SQLAuthenticate ftp_accounts
+    SQLAuthTypes Crypt
+    SQLAuthenticate users
 
     SQLConnectInfo {pannel_user}@localhost {mysql_admin_user} {mysql_admin_pass}
 
-    SQLUserInfo ftp_accounts username password home_directory
+    SQLUserInfo ftp_accounts username password 33 33 home_directory
     SQLUserWhereClause "is_active=1"
 
     RequireValidShell off
