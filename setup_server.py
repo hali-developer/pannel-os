@@ -143,13 +143,19 @@ LoadModule mod_tls.c /usr/lib/proftpd/mod_tls.so
     SQLBackend mysql
     SQLAuthTypes Crypt
     SQLAuthenticate users
-
+    SQLDefaultUID 33
+    SQLDefaultGID 33
+    SQLMinUserUID 30
+    SQLMaxClientsPerUser 10
+    SQLMaxClients 100
+    
     SQLConnectInfo {pannel_db}@localhost {pannel_user} {pannel_pass}
 
-    SQLUserInfo ftp_accounts username password 33 33 home_directory NULL
+    SQLUserInfo ftp_accounts username password NULL NULL home_directory NULL
     SQLUserWhereClause "is_active=1"
 
     RequireValidShell off
+    AllowOverwrite on
 </IfModule>
 
 DefaultRoot ~
