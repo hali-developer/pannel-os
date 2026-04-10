@@ -144,9 +144,9 @@ LoadModule mod_tls.c /usr/lib/proftpd/mod_tls.so
     SQLAuthTypes Crypt
     SQLAuthenticate users
 
-    SQLConnectInfo {pannel_user}@localhost {mysql_admin_user} {mysql_admin_pass}
+    SQLConnectInfo {pannel_db}@localhost {pannel_user} {pannel_pass}
 
-    SQLUserInfo ftp_accounts username password 33 33 home_directory
+    SQLUserInfo ftp_accounts username password 33 33 home_directory NULL
     SQLUserWhereClause "is_active=1"
 
     RequireValidShell off
