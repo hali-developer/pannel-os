@@ -13,42 +13,54 @@ from app.core.subprocess_handler import safe_run
 import subprocess
 import re
 
-def run(cmd, check=True):
-    """Run command safely (no shell=True)."""
-    print(f"  → {' '.join(cmd)}")
-    return subprocess.run(cmd, shell=False, check=check)
+# def run(cmd, check=True):
+#     """Run command safely (no shell=True)."""
+#     print(f"  → {' '.join(cmd)}")
+#     return subprocess.run(cmd, shell=False, check=check)
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
-# ── Apache VirtualHost Template ──
-# Using mod_rewrite for flexibility
-APACHE_TEMPLATE = """<VirtualHost *:80>
-    ServerName {domain}
-    ServerAlias www.{domain}
-    DocumentRoot {document_root}
+# # ── Apache VirtualHost Template ──
+# # Using mod_rewrite for flexibility
+# APACHE_TEMPLATE = """<VirtualHost *:80>
+#     ServerName {domain}
+#     ServerAlias www.{domain}
+#     DocumentRoot {document_root}
 
-    <Directory {document_root}>
-        Options -Indexes +FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
+#     <Directory {document_root}>
+#         Options -Indexes +FollowSymLinks
+#         AllowOverride All
+#         Require all granted
+#     </Directory>
 
-    # PHP Integration (standard mod_php)
-    <FilesMatch \\.php$>
-        SetHandler application/x-httpd-php
-    </FilesMatch>
+#     # PHP Integration (standard mod_php)
+#     <FilesMatch \\.php$>
+#         SetHandler application/x-httpd-php
+#     </FilesMatch>
 
-    # Logging
-    ErrorLog ${{APACHE_LOG_DIR}}/{domain}_error.log
-    CustomLog ${{APACHE_LOG_DIR}}/{domain}_access.log combined
+#     # Logging
+#     ErrorLog ${{APACHE_LOG_DIR}}/{domain}_error.log
+#     CustomLog ${{APACHE_LOG_DIR}}/{domain}_access.log combined
 
-    # Security Headers
-    Header set X-Frame-Options "SAMEORIGIN"
-    Header set X-Content-Type-Options "nosniff"
-    Header set X-XSS-Protection "1; mode=block"
-</VirtualHost>
-"""
+#     # Security Headers
+#     Header set X-Frame-Options "SAMEORIGIN"
+#     Header set X-Content-Type-Options "nosniff"
+#     Header set X-XSS-Protection "1; mode=block"
+# </VirtualHost>
+# """
 
+def run_domain_script(domain: str):
+    try:
+        result = subprocess.run(
+            ["/usr/local/bin/add_domain.sh", domain],
+            capture_output=True,
+            text=True
+        )
+
+        return result.returncode == 0, result.stdout + result.stderr
+
+    except Exception as e:
+        return False, str(e)
 
 class ApacheService:
     """Manages Apache VirtualHost configurations for client domains."""
@@ -155,25 +167,14 @@ class ApacheService:
         return ok, msg
 
     @classmethod
-    def deploy_domain(cls, domain: str, document_root: str) -> tuple[bool, str]:
-        """
-        Full deployment: write config → enable site → test → reload.
-        """
-        ok, msg = cls.write_config(domain, document_root)
-        if not ok:
-            return False, msg
+    def deploy_domain(cls, domain: str):
 
-        ok, msg = cls.enable_site(domain)
-        if not ok:
-            cls.remove_config(domain)
-            return False, msg
+        ok, output = run_domain_script(domain)
 
-        ok, msg = cls.reload()
         if not ok:
-            cls.remove_config(domain)
-            return False, f"Apache reload failed after deploy: {msg}"
+            return False, output
 
-        return True, f"Domain '{domain}' deployed successfully."
+        return True, f"Domain deployed:\n{output}"
 
     @classmethod
     def undeploy_domain(cls, domain: str) -> tuple[bool, str]:

@@ -341,6 +341,61 @@ www-data ALL=(ALL) NOPASSWD: \
     print("  ✅ Sudoers rules configured.")
 
     print("\n" + "=" * 60)
+
+    with open('/usr/local/bin/add_domain.sh', 'w') as f:
+        f.write("""
+#!/bin/bash
+
+DOMAIN=$1
+BASE_PATH="/var/www"
+WEBROOT="$BASE_PATH/$DOMAIN/public_html"
+APACHE_CONF="/etc/apache2/sites-available/$DOMAIN.conf"
+
+if [ -z "$DOMAIN" ]; then
+  echo "Domain is required"
+  exit 1
+fi
+
+echo "Creating directory..."
+mkdir -p "$WEBROOT"
+
+chown -R www-data:www-data "$BASE_PATH/$DOMAIN"
+chmod -R 755 "$BASE_PATH/$DOMAIN"
+
+echo "Creating Apache config..."
+cat > "$APACHE_CONF" <<EOL
+<VirtualHost *:80>
+    ServerName $DOMAIN
+    ServerAlias www.$DOMAIN
+    DocumentRoot $WEBROOT
+
+    <Directory $WEBROOT>
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog \${APACHE_LOG_DIR}/$DOMAIN_error.log
+    CustomLog \${APACHE_LOG_DIR}/$DOMAIN_access.log combined
+</VirtualHost>
+EOL
+
+echo "Enabling site..."
+a2ensite "$DOMAIN.conf"
+
+echo "Testing Apache config..."
+apache2ctl configtest
+if [ $? -ne 0 ]; then
+  echo "Apache config test failed"
+  exit 1
+fi
+
+echo "Reloading Apache..."
+systemctl reload apache2
+
+echo "Done ✅"
+exit 0
+        """)
+    run(["chmod", "+x", "/usr/local/bin/add_domain.sh"], check=False)
     print("  ✅ VPS Panel v3.0 setup complete!")
     print("=" * 60)
     print(f"""
