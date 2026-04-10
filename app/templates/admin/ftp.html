@@ -84,7 +84,7 @@
                                 <td class="actions-cell">
                                     <div style="display:flex;gap:0.35rem;justify-content:flex-end;align-items:center;">
                                         <!-- Change Password -->
-                                        <form action="{{ url_for('ftp.admin_change_ftp_password', ftp_username=acct.ftp_username) }}" method="POST" style="display:flex;gap:0.25rem;">
+                                        <form action="{{ url_for('ftp.admin_change_ftp_password', username=acct.username) }}" method="POST" style="display:flex;gap:0.25rem;">
                                             <input type="password" name="password" placeholder="New pwd" required minlength="8"
                                                    style="width:90px;padding:0.3rem 0.5rem;font-size:0.75rem;background:rgba(0,0,0,0.25);border:1px solid var(--border-default);color:var(--text-primary);border-radius:4px;">
                                             <button type="submit" class="btn-panel btn-ghost btn-sm-panel" title="Change Password">
@@ -92,9 +92,9 @@
                                             </button>
                                         </form>
                                         <!-- Delete -->
-                                        <form action="{{ url_for('ftp.admin_delete_ftp', ftp_username=acct.ftp_username) }}" method="POST">
+                                        <form action="{{ url_for('ftp.admin_delete_ftp', username=acct.username) }}" method="POST">
                                             <button type="submit" class="btn-panel btn-danger-panel btn-sm-panel"
-                                                    data-confirm="Delete FTP account '{{ acct.ftp_username }}'?" title="Delete">
+                                                    data-confirm="Delete FTP account '{{ acct.username }}'?" title="Delete">
                                                 <i class="bi bi-trash3"></i>
                                             </button>
                                         </form>

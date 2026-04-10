@@ -68,8 +68,8 @@ def delete_ftp_account(username: str) -> tuple[bool, str]:
     try:
         db.session.delete(account)
         db.session.commit()
-        logger.info(f"FTP account deleted: {ftp_username}")
-        return True, f"FTP account '{ftp_username}' deleted."
+        logger.info(f"FTP account deleted: {username}")
+        return True, f"FTP account '{username}' deleted."
     except Exception as e:
         db.session.rollback()
         return False, f"Database error: {str(e)}"
