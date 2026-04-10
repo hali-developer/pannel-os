@@ -385,9 +385,6 @@ mkdir -p "$WEBROOT"
 chown -R www-data:www-data "$BASE_PATH/$DOMAIN"
 chmod -R 755 "$BASE_PATH/$DOMAIN"
 
-echo "Requesting Certificate..."
-# certbot certonly --webroot -w "$WEBROOT" -d "$DOMAIN" -d "www.$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
-
 echo "Creating Apache config..."
 cat > "$APACHE_CONF" <<EOL
 <VirtualHost *:80>
@@ -396,27 +393,6 @@ cat > "$APACHE_CONF" <<EOL
     DocumentRoot $WEBROOT
 
     <Directory $WEBROOT>
-        AllowOverride All
-        Require all granted
-    </Directory>
-    
-    # Redirect all traffic to HTTPS
-    RewriteEngine On
-    RewriteCond %{HTTPS} off
-    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-    ErrorLog \${APACHE_LOG_DIR}/$DOMAIN_error.log
-    CustomLog \${APACHE_LOG_DIR}/$DOMAIN_access.log combined
-</VirtualHost>
-<VirtualHost *:443>
-    ServerName $DOMAIN
-    ServerAlias www.$DOMAIN
-    DocumentRoot /var/www/$DOMAIN/public_html
-
-    SSLEngine on
-    SSLCertificateFile /etc/letsencrypt/live/$DOMAIN/fullchain.pem
-    SSLCertificateKeyFile /etc/letsencrypt/live/$DOMAIN/privkey.pem
-
-    <Directory /var/www/$DOMAIN/public_html>
         AllowOverride All
         Require all granted
     </Directory>
@@ -435,11 +411,6 @@ if [ $? -ne 0 ]; then
   echo "Apache config test failed"
   exit 1
 fi
-
-
-a2enmod ssl
-
-apache2ctl configtest
 
 echo "Reloading Apache..."
 systemctl reload apache2
