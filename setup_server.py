@@ -146,8 +146,6 @@ LoadModule mod_tls.c /usr/lib/proftpd/mod_tls.so
     SQLDefaultUID 33
     SQLDefaultGID 33
     SQLMinUserUID 30
-    SQLMaxClientsPerUser 10
-    SQLMaxClients 100
 
     SQLConnectInfo {pannel_db}@localhost {pannel_user} {pannel_pass}
 
