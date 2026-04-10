@@ -344,6 +344,7 @@ www-data ALL=(ALL) NOPASSWD: \
 
     with open('/usr/local/bin/add_domain.sh', 'w') as f:
         f.write("""#!/bin/bash
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 DOMAIN=$1
 BASE_PATH="/var/www"
