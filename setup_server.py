@@ -58,8 +58,9 @@ def main():
     run([
         'apt', 'install', '-y',
         'apache2',
+        'openssl',
         'mysql-server',
-        'vsftpd',
+        'proftpd-mod-mysql',
         'libapache2-mod-php',
         'php-mysql',
         'php-mbstring',
@@ -121,35 +122,45 @@ FLUSH PRIVILEGES;
     except Exception as e:
         print(f"  ❌ MySQL setup error: {e}")
 
-    # ── Step 3: vsftpd Configuration ──
-    print("\n[3/7] Configuring vsftpd...")
-    vsftpd_conf = """listen=YES
-listen_ipv6=NO
-anonymous_enable=NO
-local_enable=YES
-write_enable=YES
-chroot_local_user=YES
-allow_writeable_chroot=YES
-user_sub_token=$USER
-local_root=/var/www/$USER
-pasv_min_port=40000
-pasv_max_port=50000
-userlist_enable=YES
-userlist_deny=NO
-userlist_file=/etc/vsftpd.userlist
-ssl_enable=YES
-rsa_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
-rsa_private_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
-user_config_dir=/etc/vsftpd_user_conf
+    # ── Step 3: proftpd Configuration ──
+    print("\n[3/7] Configuring proftpd...")
+    run(["openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/proftpd.key -out /etc/ssl/certs/proftpd.crt"], check=False)
+    ftpd_conf = """LoadModule mod_sql.c
+LoadModule mod_sql_mysql.c
+LoadModule mod_tls.c
+
+<IfModule mod_sql.c>
+    SQLBackend mysql
+    SQLAuthTypes Plaintext Crypt
+    SQLAuthenticate users
+
+    SQLConnectInfo ftp_panel@localhost root password
+
+    SQLUserInfo ftp_users username password uid gid homedir
+    SQLUserWhereClause "active=1"
+
+    RequireValidShell off
+</IfModule>
+
+DefaultRoot ~
+
+<IfModule mod_tls.c>
+  TLSEngine on
+  TLSLog /var/log/proftpd/tls.log
+  TLSProtocol TLSv1.2
+  TLSRSACertificateFile /etc/ssl/certs/proftpd.crt
+  TLSRSACertificateKeyFile /etc/ssl/private/proftpd.key
+  TLSRequired on
+</IfModule>
 """
-    with open('/etc/vsftpd.conf', 'w') as f:
-        f.write(vsftpd_conf)
-    os.makedirs('/etc/vsftpd_user_conf', exist_ok=True)
-    if not os.path.exists('/etc/vsftpd.userlist'):
-        with open('/etc/vsftpd.userlist', 'w') as f: f.write('')
-    run(["systemctl", "restart", "vsftpd"], check=False)
-    run(["systemctl", "enable", "vsftpd"], check=False)
-    print("  ✅ vsftpd configured with chroot + local users.")
+    with open('/etc/proftpd/proftpd.conf', 'w') as f:
+        f.write(ftpd_conf)
+
+    # os.makedirs('/etc/proftpd/conf.d', exist_ok=True)
+    # if not os.path.exists('/etc/proftpd.userlist'):
+    #     with open('/etc/proftpd.userlist', 'w') as f: f.write('')
+    # run(["systemctl", "restart", "proftpd"], check=False)
+    print("  ✅ proftpd configured with chroot + local users.")
 
     # ── Step 4: Generate Fernet Key ──
     print("\n[4/7] Generating encryption keys...")
@@ -396,6 +407,47 @@ echo "Done ✅"
 exit 0
         """)
     run(["chmod", "+x", "/usr/local/bin/add_domain.sh"], check=False)
+
+    with open('/usr/local/bin/remove_domain.sh', 'w') as f:
+        f.write("""#!/bin/bash
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+DOMAIN=$1
+BASE_PATH="/var/www"
+APACHE_CONF="/etc/apache2/sites-available/$DOMAIN.conf"
+
+if [ -z "$DOMAIN" ]; then
+  echo "Usage: $0 domain.com"
+  exit 1
+fi
+
+echo "Disabling site $DOMAIN..."
+if [ -f "$APACHE_CONF" ]; then
+    a2dissite "$DOMAIN.conf"
+fi
+
+echo "Removing Apache config..."
+rm -f "$APACHE_CONF"
+rm -f "/etc/apache2/sites-enabled/$DOMAIN.conf"
+
+echo "Removing web directory..."
+if [ -d "$BASE_PATH/$DOMAIN" ]; then
+    rm -rf "$BASE_PATH/$DOMAIN"
+fi
+
+echo "Testing Apache config..."
+apache2ctl configtest
+
+echo "Reloading Apache..."
+systemctl reload apache2
+
+echo "Domain $DOMAIN removed successfully ✅"
+exit 0
+    """)
+
+    # Make it executable
+    run(["chmod", "+x", "/usr/local/bin/remove_domain.sh"], check=False)
+
     print("  ✅ VPS Panel v3.0 setup complete!")
     print("=" * 60)
     print(f"""

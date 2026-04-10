@@ -34,7 +34,7 @@ def add_domain(user_id: int, domain_name: str) -> tuple[bool, str]:
         return False, f"Domain '{domain_name}' is already registered."
 
     web_root = current_app.config.get('WEB_ROOT', '/var/www')
-    document_root = os.path.join(web_root, user.username, 'public_html')
+    document_root = os.path.join(web_root, domain_name, 'public_html')
 
     # Deploy Apache config
     ok, msg = ApacheService.deploy_domain(domain_name)

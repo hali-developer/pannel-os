@@ -9,6 +9,7 @@ from app.core.decorators import admin_required_web, login_required_api, admin_re
 from app.modules.ftp.schemas import validate_create_ftp, validate_change_password
 from app.modules.ftp import services as ftp_svc
 from app.modules.users.services import list_users
+from app.modules.domains.services import get_all_domains
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,8 @@ def admin_ftp_page():
     """FTP management page."""
     accounts = ftp_svc.get_all_ftp_accounts()
     users = list_users()
-    return render_template('admin/ftp.html', accounts=accounts, users=users)
+    domains = get_all_domains()
+    return render_template('admin/ftp.html', accounts=accounts, users=users, domains=domains)
 
 
 @ftp_bp.route('/admin/ftp/create', methods=['POST'])
@@ -39,32 +41,37 @@ def admin_create_ftp():
         return redirect(url_for('ftp.admin_ftp_page'))
 
     user_id = request.form.get('user_id', type=int)
-    ftp_username = request.form.get('ftp_username', '').strip()
+    username = request.form.get('username', '').strip()
     password = request.form.get('password', '')
+    domain_id = request.form.get('domain_id', type=int)
 
     if not user_id:
         flash('Please select a user.', 'danger')
         return redirect(url_for('ftp.admin_ftp_page'))
+    
+    if not domain_id:
+        flash('Please select a domain.', 'danger')
+        return redirect(url_for('ftp.admin_ftp_page'))
 
-    ok, msg = ftp_svc.create_ftp_account(user_id, ftp_username, password)
+    ok, msg = ftp_svc.create_ftp_account(user_id, username, password, domain_id)
     flash(msg, 'success' if ok else 'danger')
     return redirect(url_for('ftp.admin_ftp_page'))
 
 
-@ftp_bp.route('/admin/ftp/<string:ftp_username>/delete', methods=['POST'])
+@ftp_bp.route('/admin/ftp/<string:username>/delete', methods=['POST'])
 @admin_required_web
 @log_activity('delete_ftp')
-def admin_delete_ftp(ftp_username):
+def admin_delete_ftp(username):
     """Delete an FTP account."""
-    ok, msg = ftp_svc.delete_ftp_account(ftp_username)
+    ok, msg = ftp_svc.delete_ftp_account(username)
     flash(msg, 'success' if ok else 'danger')
     return redirect(url_for('ftp.admin_ftp_page'))
 
 
-@ftp_bp.route('/admin/ftp/<string:ftp_username>/password', methods=['POST'])
+@ftp_bp.route('/admin/ftp/<string:username>/password', methods=['POST'])
 @admin_required_web
 @log_activity('change_ftp_password')
-def admin_change_ftp_password(ftp_username):
+def admin_change_ftp_password(username):
     """Change FTP password."""
     valid, error = validate_change_password(request.form)
     if not valid:
@@ -72,7 +79,7 @@ def admin_change_ftp_password(ftp_username):
         return redirect(url_for('ftp.admin_ftp_page'))
 
     password = request.form.get('password', '')
-    ok, msg = ftp_svc.change_ftp_password(ftp_username, password)
+    ok, msg = ftp_svc.change_ftp_password(username, password)
     flash(msg, 'success' if ok else 'danger')
     return redirect(url_for('ftp.admin_ftp_page'))
 
@@ -95,7 +102,7 @@ def api_create_ftp():
         return jsonify({"error": "user_id is required"}), 400
 
     ok, msg = ftp_svc.create_ftp_account(
-        user_id, data['ftp_username'].strip(), data['password']
+        user_id, data['username'].strip(), data['password']
     )
     if ok:
         return jsonify({"message": msg}), 201

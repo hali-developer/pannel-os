@@ -6,10 +6,10 @@ from app.core.security import validate_ftp_username, validate_password
 
 def validate_create_ftp(data: dict) -> tuple[bool, str]:
     """Validate FTP account creation input."""
-    ftp_username = (data.get('ftp_username') or '').strip()
+    username = (data.get('username') or '').strip()
     password = data.get('password') or ''
 
-    ok, msg = validate_ftp_username(ftp_username)
+    ok, msg = validate_ftp_username(username)
     if not ok:
         return False, msg
 

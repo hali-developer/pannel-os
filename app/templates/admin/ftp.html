@@ -23,8 +23,17 @@
                         </select>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">Assign to Domain</label>
+                        <select class="form-select" name="domain_id" required>
+                            <option value="">Select domain...</option>
+                            {% for d in domains %}
+                            <option value="{{ d.id }}">{{ d.domain }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">FTP Username</label>
-                        <input type="text" class="form-control" name="ftp_username" placeholder="e.g. ftp_john" required>
+                        <input type="text" class="form-control" name="username" placeholder="e.g. ftp_john" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Password</label>
@@ -63,7 +72,7 @@
                             <tr>
                                 <td>
                                     <i class="bi bi-person-badge" style="color:var(--accent-amber);margin-right:0.35rem;"></i>
-                                    {{ acct.ftp_username }}
+                                    {{ acct.username }}
                                 </td>
                                 <td>{{ acct.owner.username if acct.owner else '—' }}</td>
                                 <td>

@@ -31,48 +31,8 @@ class FTPSystemService:
         """Get the home directory path for a user."""
         return os.path.join(cls._get_web_root(), username)
 
-    @classmethod
-    def create_system_user(cls, username: str, home_dir: str) -> tuple[bool, str]:
-        """
-        Create a system user locked to their home directory.
-        Shell is set to /usr/sbin/nologin to prevent SSH access.
-        """
-        ok, msg = safe_run([
-            'sudo', '/usr/sbin/useradd',
-            '-m',
-            '-d', home_dir,
-            '-s', '/usr/sbin/nologin',
-            username
-        ])
-        if not ok:
-            return False, f"Failed to create system user: {msg}"
 
-        logger.info(f"System user created: {username} -> {home_dir}")
-        return True, f"System user '{username}' created."
-
-    @classmethod
-    def delete_system_user(cls, username: str) -> tuple[bool, str]:
-        """Delete a system user and their home directory."""
-        ok, msg = safe_run(['sudo', '/usr/sbin/userdel', '-r', username])
-        if not ok:
-            return False, f"Failed to delete system user: {msg}"
-
-        logger.info(f"System user deleted: {username}")
-        return True, f"System user '{username}' deleted."
-
-    @classmethod
-    def set_password(cls, username: str, password: str) -> tuple[bool, str]:
-        """Set the password for a system user."""
-        ok, msg = safe_run(
-            ['sudo', '/usr/sbin/chpasswd'],
-            input_data=f"{username}:{password}"
-        )
-        if not ok:
-            return False, f"Failed to set password: {msg}"
-
-        logger.info(f"Password set for user: {username}")
-        return True, "Password updated."
-
+   
     @classmethod
     def setup_directories(cls, home_dir: str, username: str) -> tuple[bool, str]:
         """
@@ -174,57 +134,7 @@ class FTPSystemService:
             logger.error(f"Failed to create vsftpd config for {username}: {e}")
             return False, str(e)
 
-    @classmethod
-    def remove_vsftpd_config(cls, username: str) -> tuple[bool, str]:
-        """Remove per-user vsftpd configuration."""
-        conf_dir = cls._get_ftp_conf_dir()
-        conf_path = os.path.join(conf_dir, username)
 
-        ok, msg = safe_run(['sudo', '/bin/rm', '-f', conf_path])
-        if not ok:
-            return False, f"Failed to remove vsftpd config: {msg}"
-
-        logger.info(f"vsftpd config removed: {conf_path}")
-        return True, "vsftpd config removed."
-
-    @classmethod
-    def provision_ftp_user(
-        cls, username: str, password: str, home_dir: str = None
-    ) -> tuple[bool, str]:
-        """
-        Full FTP user provisioning:
-          1. Create system user
-          2. Set password
-          3. Setup directories
-          4. Create vsftpd config
-        """
-        if home_dir is None:
-            home_dir = cls.get_home_directory(username)
-
-        # Step 1: Create system user
-        ok, msg = cls.create_system_user(username, home_dir)
-        if not ok:
-            return False, msg
-
-        # Step 2: Set password
-        ok, msg = cls.set_password(username, password)
-        if not ok:
-            cls.delete_system_user(username)
-            return False, msg
-
-        # Step 3: Setup directories
-        ok, msg = cls.setup_directories(home_dir, username)
-        if not ok:
-            cls.delete_system_user(username)
-            return False, msg
-
-        # Step 4: vsftpd config
-        ok, msg = cls.create_vsftpd_config(username, home_dir)
-        if not ok:
-            cls.delete_system_user(username)
-            return False, msg
-
-        return True, f"FTP user '{username}' fully provisioned."
 
     @classmethod
     def deprovision_ftp_user(cls, username: str) -> tuple[bool, str]:
