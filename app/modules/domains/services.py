@@ -37,7 +37,7 @@ def add_domain(user_id: int, domain_name: str) -> tuple[bool, str]:
     document_root = os.path.join(web_root, user.username, 'public_html')
 
     # Deploy Apache config
-    ok, msg = ApacheService.deploy_domain(domain_name, document_root)
+    ok, msg = ApacheService.deploy_domain(domain_name)
     if not ok:
         return False, f"Apache deployment failed: {msg}"
 

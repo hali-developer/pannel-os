@@ -56,9 +56,7 @@ def run_domain_script(domain: str):
             capture_output=True,
             text=True
         )
-
         return result.returncode == 0, result.stdout + result.stderr
-
     except Exception as e:
         return False, str(e)
 
@@ -168,12 +166,10 @@ class ApacheService:
 
     @classmethod
     def deploy_domain(cls, domain: str):
-
         ok, output = run_domain_script(domain)
-
         if not ok:
             return False, output
-
+            
         return True, f"Domain deployed:\n{output}"
 
     @classmethod
