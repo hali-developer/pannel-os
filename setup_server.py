@@ -343,8 +343,7 @@ www-data ALL=(ALL) NOPASSWD: \
     print("\n" + "=" * 60)
 
     with open('/usr/local/bin/add_domain.sh', 'w') as f:
-        f.write("""
-#!/bin/bash
+        f.write("""#!/bin/bash
 
 DOMAIN=$1
 BASE_PATH="/var/www"
