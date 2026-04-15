@@ -1,13 +1,13 @@
 """
 VPS Panel — DB User Module Services
 
-Business logic for MySQL database user management.
-Orchestrates between panel DB records and MySQL user provisioning.
+Business logic for PostgreSQL database user management.
+Orchestrates between panel DB records and PostgreSQL user provisioning.
 
 Architecture:
-  - DbUser: a MySQL user created for a panel client
+  - DbUser: a PostgreSQL user created for a panel client
   - DbUserPermission: maps which DbUser can access which ClientDatabase
-  - MySQL GRANT/REVOKE ensures phpMyAdmin only shows permitted databases
+  - PostgreSQL GRANT/REVOKE ensures permissions are correct.
 """
 import logging
 from cryptography.fernet import Fernet
@@ -17,7 +17,7 @@ from app.models.db_user import DbUser
 from app.models.db_user_permission import DbUserPermission
 from app.models.database import ClientDatabase
 from app.models.user import User
-from app.services.mysql_service import MySQLService
+from app.services.postgresql_service import PostgreSQLService
 
 logger = logging.getLogger(__name__)
 
@@ -55,10 +55,10 @@ def _decrypt_password(encrypted: str) -> str:
 
 def create_db_user(owner_user_id: int, db_username: str, password: str) -> tuple[bool, str]:
     """
-    Create a MySQL database user:
+    Create a PostgreSQL database user:
       1. Validate owner exists
       2. Check for duplicates
-      3. Create MySQL user
+      3. Create PostgreSQL user
       4. Record in panel DB with encrypted password
     """
     owner = User.query.get(owner_user_id)
@@ -69,16 +69,16 @@ def create_db_user(owner_user_id: int, db_username: str, password: str) -> tuple
     if existing:
         return False, f"DB username '{db_username}' already exists."
 
-    # Create on MySQL
-    ok, msg = MySQLService.create_user(db_username, password)
+    # Create on PostgreSQL
+    ok, msg = PostgreSQLService.create_user(db_username, password)
     if not ok:
-        return False, f"MySQL user creation failed: {msg}"
+        return False, f"PostgreSQL user creation failed: {msg}"
 
     # Record in panel DB
     try:
         encrypted_pwd = _encrypt_password(password)
     except Exception as e:
-        MySQLService.drop_user(db_username)
+        PostgreSQLService.drop_user(db_username)
         return False, f"Password encryption failed: {str(e)}"
 
     record = DbUser(
@@ -94,23 +94,23 @@ def create_db_user(owner_user_id: int, db_username: str, password: str) -> tuple
         return True, f"DB user '{db_username}' created."
     except Exception as e:
         db.session.rollback()
-        MySQLService.drop_user(db_username)
+        PostgreSQLService.drop_user(db_username)
         return False, f"Database error: {str(e)}"
 
 
 def delete_db_user(db_username: str) -> tuple[bool, str]:
-    """Delete a DB user from both MySQL and panel DB."""
+    """Delete a DB user from both PostgreSQL and panel DB."""
     record = DbUser.query.filter_by(db_username=db_username).first()
     if not record:
         return False, f"DB user '{db_username}' not found."
 
     # Revoke all privileges first
-    MySQLService.revoke_all_user_privileges(db_username)
+    PostgreSQLService.revoke_all_user_privileges(db_username)
 
-    # Drop from MySQL
-    ok, msg = MySQLService.drop_user(db_username)
+    # Drop from PostgreSQL
+    ok, msg = PostgreSQLService.drop_user(db_username)
     if not ok:
-        logger.warning(f"MySQL drop user warning for {db_username}: {msg}")
+        logger.warning(f"PostgreSQL drop user warning for {db_username}: {msg}")
 
     # Remove from panel DB (cascades to permissions)
     try:
@@ -124,15 +124,15 @@ def delete_db_user(db_username: str) -> tuple[bool, str]:
 
 
 def update_db_user_password(db_username: str, new_password: str) -> tuple[bool, str]:
-    """Update a DB user's password in both MySQL and panel DB."""
+    """Update a DB user's password in both PostgreSQL and panel DB."""
     record = DbUser.query.filter_by(db_username=db_username).first()
     if not record:
         return False, f"DB user '{db_username}' not found."
 
-    # Update on MySQL
-    ok, msg = MySQLService.update_user_password(db_username, new_password)
+    # Update on PostgreSQL
+    ok, msg = PostgreSQLService.update_user_password(db_username, new_password)
     if not ok:
-        return False, f"MySQL password update failed: {msg}"
+        return False, f"PostgreSQL password update failed: {msg}"
 
     # Update encrypted password in panel DB
     try:
@@ -154,7 +154,7 @@ def grant_db_access(db_username: str, db_name: str) -> tuple[bool, str]:
     Grant a DB user access to a specific database:
       1. Validate both exist
       2. Check for duplicate permission
-      3. GRANT on MySQL
+      3. GRANT on PostgreSQL
       4. Record permission
     """
     db_user_record = DbUser.query.filter_by(db_username=db_username).first()
@@ -173,10 +173,10 @@ def grant_db_access(db_username: str, db_name: str) -> tuple[bool, str]:
     if existing:
         return False, f"'{db_username}' already has access to '{db_name}'."
 
-    # Grant on MySQL
-    ok, msg = MySQLService.grant_privileges(db_name, db_username)
+    # Grant on PostgreSQL
+    ok, msg = PostgreSQLService.grant_privileges(db_name, db_username)
     if not ok:
-        return False, f"MySQL GRANT failed: {msg}"
+        return False, f"PostgreSQL GRANT failed: {msg}"
 
     # Record permission
     perm = DbUserPermission(
@@ -190,7 +190,7 @@ def grant_db_access(db_username: str, db_name: str) -> tuple[bool, str]:
         return True, f"'{db_username}' granted access to '{db_name}'."
     except Exception as e:
         db.session.rollback()
-        MySQLService.revoke_privileges(db_name, db_username)
+        PostgreSQLService.revoke_privileges(db_name, db_username)
         return False, f"Database error: {str(e)}"
 
 
@@ -211,10 +211,10 @@ def revoke_db_access(db_username: str, db_name: str) -> tuple[bool, str]:
     if not perm:
         return False, f"'{db_username}' does not have access to '{db_name}'."
 
-    # Revoke on MySQL
-    ok, msg = MySQLService.revoke_privileges(db_name, db_username)
+    # Revoke on PostgreSQL
+    ok, msg = PostgreSQLService.revoke_privileges(db_name, db_username)
     if not ok:
-        logger.warning(f"MySQL REVOKE warning: {msg}")
+        logger.warning(f"PostgreSQL REVOKE warning: {msg}")
 
     # Remove permission record
     try:

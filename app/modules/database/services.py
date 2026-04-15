@@ -9,7 +9,7 @@ from app.extensions import db
 from app.models.database import ClientDatabase
 from app.models.db_user_permission import DbUserPermission
 from app.models.user import User
-from app.services.mysql_service import MySQLService
+from app.services.postgresql_service import PostgreSQLService
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +31,10 @@ def create_database(user_id: int, db_name: str, db_user: str, password: str) -> 
     if existing:
         return False, f"Database '{db_name}' already exists."
 
-    # Provision on MySQL
-    ok, msg = MySQLService.provision_database(db_name, db_user, password)
+    # Provision on PostgreSQL
+    ok, msg = PostgreSQLService.provision_database(db_name, db_user, password)
     if not ok:
-        return False, f"MySQL provisioning failed: {msg}"
+        return False, f"PostgreSQL provisioning failed: {msg}"
 
     # Record in panel DB
     record = ClientDatabase(
@@ -50,8 +50,8 @@ def create_database(user_id: int, db_name: str, db_user: str, password: str) -> 
         return True, f"Database '{db_name}' created with user '{db_user}'."
     except Exception as e:
         db.session.rollback()
-        # Rollback MySQL provisioning
-        MySQLService.deprovision_database(db_name, db_user)
+        # Rollback PostgreSQL provisioning
+        PostgreSQLService.deprovision_database(db_name, db_user)
         return False, f"Database error: {str(e)}"
 
 
@@ -67,15 +67,15 @@ def delete_database(db_name: str) -> tuple[bool, str]:
     permissions = DbUserPermission.query.filter_by(db_id=record.id).all()
     for perm in permissions:
         try:
-            MySQLService.revoke_privileges(db_name, perm.db_user.db_username)
+            PostgreSQLService.revoke_privileges(db_name, perm.db_user.db_username)
         except Exception:
             pass
         db.session.delete(perm)
 
-    # Deprovision from MySQL
-    ok, msg = MySQLService.deprovision_database(db_name, db_user)
+    # Deprovision from PostgreSQL
+    ok, msg = PostgreSQLService.deprovision_database(db_name, db_user)
     if not ok:
-        logger.warning(f"MySQL deprovision warning for {db_name}: {msg}")
+        logger.warning(f"PostgreSQL deprovision warning for {db_name}: {msg}")
 
     # Remove from panel DB
     try:
@@ -94,7 +94,7 @@ def update_database_password(db_name: str, new_password: str) -> tuple[bool, str
     if not record:
         return False, f"Database '{db_name}' not found."
 
-    ok, msg = MySQLService.update_user_password(record.db_user, new_password)
+    ok, msg = PostgreSQLService.update_user_password(record.db_user, new_password)
     if not ok:
         return False, f"Password update failed: {msg}"
 

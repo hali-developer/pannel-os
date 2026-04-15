@@ -17,7 +17,7 @@
         <div class="stat-card blue">
             <div class="stat-icon"><i class="bi bi-database-fill"></i></div>
             <div class="stat-value">{{ databases | length }}</div>
-            <div class="stat-label">MySQL Databases</div>
+            <div class="stat-label">PostgreSQL Databases</div>
         </div>
     </div>
     <div class="col-md-3">
@@ -248,7 +248,7 @@
             <div class="card-body">
                 <form action="{{ url_for('db_users.client_create_db_user') }}" method="POST" autocomplete="off">
                     <div class="mb-3">
-                        <label class="form-label">MySQL Username</label>
+                        <label class="form-label">PostgreSQL Username</label>
                         <div class="input-group">
                             <span class="input-group-text" style="background:rgba(0,0,0,0.25);border:1px solid var(--border-default);color:var(--text-dim);font-size:0.8rem;">
                                 {{ user.username }}_
@@ -257,7 +257,7 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">MySQL Password</label>
+                        <label class="form-label">PostgreSQL Password</label>
                         <input type="password" class="form-control" name="password" placeholder="Min 8 characters" required minlength="8">
                     </div>
                     <button type="submit" class="btn-panel btn-success-panel w-100">

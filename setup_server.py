@@ -3,9 +3,9 @@
 VPS Panel v3.0 — Server Setup Script (Ubuntu 24.04+)
 
 Interactive script to install and configure all dependencies:
-  - Apache2, vsftpd, MySQL, PHP, phpMyAdmin
-  - Create MySQL panel database and user
-  - Create MySQL panel admin user with GRANT ALL
+  - Apache2, vsftpd, PostgreSQL, PHP, phppgadmin
+  - Create PostgreSQL panel database and user
+  - Create PostgreSQL panel admin user with privileges
   - Configure vsftpd for local users with chroot
   - Generate .env from template
   - Generate Fernet encryption key for DB passwords
@@ -59,69 +59,67 @@ def main():
         'apt', 'install', '-y',
         'apache2',
         'openssl',
-        'mysql-server',
-        'proftpd-mod-mysql',
+        'postgresql',
+        'postgresql-contrib',
+        'proftpd-mod-pgsql',
         'proftpd-mod-crypto',
         'libapache2-mod-php',
-        'php-mysql',
+        'php-pgsql',
         'php-mbstring',
         'php-zip',
         'php-gd',
         'php-json',
         'php-curl',
-        'phpmyadmin',
+        'phppgadmin',
         'python3-pip',
         'python3-venv',
         'python3-dev',
         'certbot',
         'python3-certbot-apache',
-        'libmysqlclient-dev',
+        'libpq-dev',
         'build-essential'
     ])
     print("  ✅ System packages installed.")
 
-    # ── Step 2: MySQL Setup (Panel & Admin) ──
-    print("\n[2/7] Configuring MySQL...")
-    # 2.1 Admin Account (for provisioning)
-    mysql_admin_user = input("  MySQL panel admin username [pannel_admin]: ").strip() or "root"
-    mysql_admin_pass = getpass.getpass(f"  MySQL password for '{mysql_admin_user}': ") or "XcF@2oC1Dv11yqXFRff"
+    # ── Step 2: PostgreSQL Setup (Panel & Admin) ──
+    print("\n[2/7] Configuring PostgreSQL...")
     
-    # 2.2 Panel Metadata Database
-    pannel_db = input("  Panel internal database name [pannel_db]: ").strip() or "pannel_db"
-    pannel_user = input("  Panel internal DB user [pannel_user]: ").strip() or "admin"
-    pannel_pass = getpass.getpass(f"  Panel internal DB password: ") or "StrongPassword123!"
+    # Generate automatic credentials for security
+    mysql_admin_user = "postgres"
+    mysql_admin_pass = generate_secret(16)
+    
+    pannel_db = "pannel_db"
+    pannel_user = "pannel_internal"
+    pannel_pass = generate_secret(16)
+    
+    web_admin_user = "admin"
+    web_admin_pass = generate_secret(12)
 
-    mysql_cmds = f"""
--- Create provisioning admin
-CREATE USER IF NOT EXISTS '{mysql_admin_user}'@'localhost' IDENTIFIED BY '{mysql_admin_pass}';
-GRANT ALL PRIVILEGES ON *.* TO '{mysql_admin_user}'@'localhost' WITH GRANT OPTION;
+    # In PostgreSQL, role creation and database creation need to happen sequentially usually, but psql handles it if sent as commands.
+    pg_cmds = f"""
+-- Ensure admin has new password
+ALTER USER {mysql_admin_user} WITH PASSWORD '{mysql_admin_pass}';
+
+-- Create internal panel database role
+CREATE USER {pannel_user} WITH ENCRYPTED PASSWORD '{pannel_pass}';
 
 -- Create internal panel database
-CREATE DATABASE IF NOT EXISTS {pannel_db} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS '{pannel_user}'@'localhost' IDENTIFIED BY '{pannel_pass}';
-GRANT ALL PRIVILEGES ON *.* TO '{pannel_user}'@'localhost';
-
-FLUSH PRIVILEGES;
+CREATE DATABASE {pannel_db} OWNER {pannel_user} ENCODING 'utf8';
 """
     
-    cmd = ['sudo', 'mysql', '-e', mysql_cmds]
+    cmd = ['sudo', '-u', 'postgres', 'psql', '-c', pg_cmds]
 
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True)
         if proc.returncode == 0:
-            print("  ✅ MySQL panel databases and users configured.")
+            print("  ✅ PostgreSQL panel database and users configured.")
         else:
-            if "using password: NO" in proc.stderr or "Access denied" in proc.stderr:
-                 print("  ⚠ Root access denied with password. Attempting via auth_socket...")
-                 proc = subprocess.run(['sudo', 'mysql', '-e', mysql_cmds], capture_output=True, text=True)
-                 if proc.returncode == 0:
-                     print("  ✅ MySQL configured via sudo/auth_socket.")
-                 else:
-                     print(f"  ❌ MySQL setup failed: {proc.stderr}")
-            else:
-                print(f"  ❌ MySQL setup failed: {proc.stderr}")
+             if 'already exists' in proc.stderr:
+                 print("  ✅ PostgreSQL already configured (or partially configured).")
+             else:
+                 print(f"  ❌ PostgreSQL setup failed: {proc.stderr}")
     except Exception as e:
-        print(f"  ❌ MySQL setup error: {e}")
+        print(f"  ❌ PostgreSQL setup error: {e}")
 
     # ── Step 3: proftpd Configuration ──
     print("\n[3/7] Configuring proftpd...")
@@ -136,11 +134,11 @@ FLUSH PRIVILEGES;
         "-out", "/etc/ssl/certs/proftpd.crt"
     ], check=False)
     ftpd_conf = f"""LoadModule mod_sql.c /usr/lib/proftpd/mod_sql.so
-LoadModule mod_sql_mysql.c /usr/lib/proftpd/mod_sql_mysql.so
+LoadModule mod_sql_postgres.c /usr/lib/proftpd/mod_sql_postgres.so
 LoadModule mod_tls.c /usr/lib/proftpd/mod_tls.so
 
 <IfModule mod_sql.c>
-    SQLBackend mysql
+    SQLBackend postgres
     SQLAuthTypes Crypt
     SQLAuthenticate users
     SQLDefaultUID 33
@@ -199,12 +197,11 @@ PANEL_DB_HOST=localhost
 PANEL_DB_NAME={pannel_db}
 PANEL_DB_USER={pannel_user}
 PANEL_DB_PASSWORD={pannel_pass}
-PANEL_DB_SOCKET=/var/run/mysqld/mysqld.sock
 
-MYSQL_HOST=localhost
-MYSQL_PORT=3306
-MYSQL_ADMIN_USER={mysql_admin_user}
-MYSQL_ADMIN_PASSWORD={mysql_admin_pass}
+POSTGRESQL_HOST=localhost
+POSTGRESQL_PORT=5432
+POSTGRESQL_ADMIN_USER={mysql_admin_user}
+POSTGRESQL_ADMIN_PASSWORD={mysql_admin_pass}
 
 DB_PASSWORD_ENCRYPTION_KEY={fernet_key}
 
@@ -213,6 +210,10 @@ LOG_LEVEL=INFO
 LOG_FILE=/var/log/pannel/panel.log
 PANEL_NAME=VPS Panel
 PANEL_VERSION=3.0.0
+
+# Initial Web Admin Credentials
+PANEL_ADMIN_USER={web_admin_user}
+PANEL_ADMIN_PASSWORD={web_admin_pass}
 """
     with open(env_path, 'w') as f:
         f.write(env_content)
@@ -251,24 +252,39 @@ PANEL_VERSION=3.0.0
     os.makedirs('/var/log/pannel', exist_ok=True)
 
     python_path = os.path.join(venv_path, 'bin', 'python')
-    # Initialize database
-    run(["bash", "-c", f"cd {panel_dir} && {python_path} -c \"from app import create_app; create_app()\""])
+    # Initialize database schema
+    schema_path = os.path.join(panel_dir, 'schema.sql')
+    if os.path.exists(schema_path):
+        print("  Loading PostgreSQL schema...")
+        # psql can run files directly via -f on the targeted database
+        run(["sudo", "-u", "postgres", "psql", "-d", pannel_db, "-f", schema_path], check=False)
+    else:
+        # Fallback to python init
+        run(["bash", "-c", f"cd {panel_dir} && {python_path} -c \"from app import create_app; create_app()\""])
+
+    # Ensure Web Admin user is created correctly with the dynamically generated password
+    admin_setup_code = f"from app import create_app; from app.extensions import db; from app.models.user import User; from werkzeug.security import generate_password_hash; app = create_app(); app.app_context().push(); " \
+                       f"u = User.query.filter_by(username='{web_admin_user}').first(); " \
+                       f"db.session.add(User(username='{web_admin_user}', password_hash=generate_password_hash('{web_admin_pass}'), role='admin', is_active=True)) if not u else None; " \
+                       f"db.session.commit()"
+    
+    run(["bash", "-c", f"cd {panel_dir} && {python_path} -c \"{admin_setup_code}\""], check=False)
     
     # Apache Setup
     run(["a2enmod", "proxy", "proxy_http", "headers", "rewrite"], check=False)
     
-   # Ensure phpMyAdmin is included in Apache
-    if os.path.exists('/etc/phpmyadmin/apache.conf'):
-        run(["ln", "-sf", "/etc/phpmyadmin/apache.conf", "/etc/apache2/conf-available/phpmyadmin.conf"], check=False)
-        run(["a2enconf", "phpmyadmin"], check=False)
+   # Ensure Config for phppgadmin is available (if present)
+    if os.path.exists('/etc/phppgadmin/apache.conf'):
+        run(["ln", "-sf", "/etc/phppgadmin/apache.conf", "/etc/apache2/conf-available/phppgadmin.conf"], check=False)
+        run(["a2enconf", "phppgadmin"], check=False)
 
     panel_apache = f"""<VirtualHost *:8080>
     ServerName _
 
-    # Exclude phpMyAdmin from proxying to Flask
-    ProxyPass /phpmyadmin !
-    Alias /phpmyadmin /usr/share/phpmyadmin
-    <Directory /usr/share/phpmyadmin>
+    # Exclude phppgadmin from proxying to Flask
+    ProxyPass /phppgadmin !
+    Alias /phppgadmin /usr/share/phppgadmin
+    <Directory /usr/share/phppgadmin>
         Options FollowSymLinks
         DirectoryIndex index.php
         AllowOverride All
@@ -301,7 +317,7 @@ PANEL_VERSION=3.0.0
     gunicorn_path = os.path.join(venv_path, 'bin', 'gunicorn')
     systemd_service = f"""[Unit]
 Description=VPS Panel Gunicorn Service
-After=network.target mysql.service
+After=network.target postgresql.service
 
 [Service]
 Type=simple
@@ -322,13 +338,9 @@ WantedBy=multi-user.target
     run(["systemctl", "enable", "vps-panel"], check=False)
     run(["systemctl", "start", "vps-panel"], check=False)
 
-    # Copy phpMyAdmin config
-    pma_config_src = os.path.join(panel_dir, 'phpmyadmin_config.inc.php')
-    pma_config_dst = '/etc/phpmyadmin/conf.d/vps-panel.inc.php'
-    if os.path.exists(pma_config_src):
-        os.makedirs('/etc/phpmyadmin/conf.d', exist_ok=True)
-        shutil.copy2(pma_config_src, pma_config_dst)
-        print("  ✅ phpMyAdmin config deployed.")
+    # Remove out of date phpmyadmin configs for safety
+    if os.path.exists('/etc/phpmyadmin/conf.d/vps-panel.inc.php'):
+        os.remove('/etc/phpmyadmin/conf.d/vps-panel.inc.php')
 
     # Create sudoers rule for panel
     sudoers_rule = f"""# VPS Panel — allow www-data to manage system users and services
@@ -460,14 +472,14 @@ exit 0
     print("=" * 60)
     print(f"""
   Panel URL:      http://YOUR_IP:5246
-  phpMyAdmin:     http://YOUR_IP:5246/phpmyadmin
+  phpPgAdmin:     http://YOUR_IP:5246/phppgadmin
   
-  Default login:  admin / admin
+  Default login:  {web_admin_user} / {web_admin_pass}
   
   Service:        systemctl status vps-panel
   Logs:           journalctl -u vps-panel -f
   
-  IMPORTANT: Change the admin password immediately!
+  IMPORTANT: Save these credentials securely! They are in .env as well.
   
   vsftpd Config:
     - chroot_local_user=YES

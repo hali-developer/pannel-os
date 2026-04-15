@@ -133,8 +133,8 @@ def delete_user(user_id: int) -> tuple[bool, str]:
     Permanently delete a user and cascade to related records.
     Cleans up:
       - Linux system user
-      - MySQL databases owned by this user
-      - MySQL DB users owned by this user
+      - PostgreSQL databases owned by this user
+      - PostgreSQL DB users owned by this user
       - FTP accounts
       - Domains (Apache configs)
     """
@@ -150,17 +150,17 @@ def delete_user(user_id: int) -> tuple[bool, str]:
 
     # Cleanup: deprovision all databases
     from app.models.database import ClientDatabase
-    from app.services.mysql_service import MySQLService
+    from app.services.postgresql_service import PostgreSQLService
     client_dbs = ClientDatabase.query.filter_by(user_id=user_id).all()
     for cdb in client_dbs:
-        MySQLService.deprovision_database(cdb.db_name, cdb.db_user)
+        PostgreSQLService.deprovision_database(cdb.db_name, cdb.db_user)
 
     # Cleanup: deprovision all DB users
     from app.models.db_user import DbUser
     db_users = DbUser.query.filter_by(owner_user_id=user_id).all()
     for dbu in db_users:
-        MySQLService.revoke_all_user_privileges(dbu.db_username)
-        MySQLService.drop_user(dbu.db_username)
+        PostgreSQLService.revoke_all_user_privileges(dbu.db_username)
+        PostgreSQLService.drop_user(dbu.db_username)
 
     # Cleanup: deprovision domains (Apache configs)
     from app.models.domain import Domain

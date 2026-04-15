@@ -11,8 +11,8 @@ itsdangerous>=2.1.2
 click>=8.1.7
 blinker>=1.7.0
 
-# ── Database (MySQL for all panel data and client sites) ──
-PyMySQL==1.1.0
+# ── Database (PostgreSQL for all panel data and client sites) ──
+psycopg2-binary==2.9.9
 SQLAlchemy>=2.0.23
 Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.0.5

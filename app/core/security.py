@@ -30,7 +30,7 @@ def validate_username(name: str) -> tuple[bool, str]:
     if not USERNAME_PATTERN.match(name):
         return False, "Username must start with a letter, contain only letters/numbers/underscores, and be 3-32 characters."
     # Forbid system usernames
-    forbidden = {'root', 'admin', 'www-data', 'nginx', 'mysql', 'postgres',
+    forbidden = {'root', 'admin', 'www-data', 'nginx', 'PostgreSQL', 'postgres',
                  'nobody', 'daemon', 'bin', 'sys', 'mail', 'ftp'}
     if name.lower() in forbidden:
         return False, f"Username '{name}' is reserved."
@@ -49,13 +49,13 @@ def validate_domain(domain: str) -> tuple[bool, str]:
 
 
 def validate_db_name(name: str) -> tuple[bool, str]:
-    """Validate a MySQL database name."""
+    """Validate a PostgreSQL database name."""
     if not name:
         return False, "Database name is required."
     if not DB_NAME_PATTERN.match(name):
         return False, "Database name must start with a letter and contain only letters/numbers/underscores (max 64 chars)."
     # Forbid system databases
-    forbidden = {'mysql', 'information_schema', 'performance_schema', 'sys',
+    forbidden = {'PostgreSQL', 'information_schema', 'performance_schema', 'sys',
                  'phpmyadmin', 'pannel_db'}
     if name.lower() in forbidden:
         return False, f"Database name '{name}' is reserved."
@@ -63,7 +63,7 @@ def validate_db_name(name: str) -> tuple[bool, str]:
 
 
 def validate_db_user(name: str) -> tuple[bool, str]:
-    """Validate a MySQL user name."""
+    """Validate a PostgreSQL user name."""
     if not name:
         return False, "DB username is required."
     if not DB_USER_PATTERN.match(name):
