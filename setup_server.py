@@ -81,6 +81,18 @@ def main():
     ])
     print("  ✅ System packages installed.")
 
+    # ── Move Code to /var/www/pannel ──
+    print("\n[1.5/7] Moving panel code to /var/www/pannel...")
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    panel_dir = "/var/www/pannel"
+    
+    if current_dir != panel_dir:
+        os.makedirs(panel_dir, exist_ok=True)
+        # Using bash to expand the shell wildcard properly if needed, but safe here with current_dir/.
+        run(["bash", "-c", f"cp -a {current_dir}/. {panel_dir}/"], check=False)
+        run(["chown", "-R", "root:root", panel_dir], check=False)
+        print(f"  ✅ Code moved to {panel_dir}.")
+
     # ── Step 2: PostgreSQL Setup (Panel & Admin) ──
     print("\n[2/7] Configuring PostgreSQL...")
     
@@ -185,7 +197,6 @@ DefaultRoot ~
 
     # ── Step 5: Generate .env ──
     print("\n[5/7] Generating .env file...")
-    panel_dir = os.path.dirname(os.path.abspath(__file__))
     env_path = os.path.join(panel_dir, '.env')
 
     env_content = f"""# VPS Panel v3.0 Configuration (Auto-generated)
@@ -489,5 +500,4 @@ exit 0
 """)
 
 
-if __name__ == '__main__':
-    main()
+if 
