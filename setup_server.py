@@ -109,6 +109,8 @@ def main():
 
     pg_cmds = [
         f"ALTER USER {mysql_admin_user} WITH PASSWORD '{mysql_admin_pass}';",
+        f"DROP DATABASE IF EXISTS {pannel_db};",
+        f"DROP USER IF EXISTS {pannel_user};",
         f"CREATE USER {pannel_user} WITH ENCRYPTED PASSWORD '{pannel_pass}';",
         f"CREATE DATABASE {pannel_db} OWNER {pannel_user} ENCODING 'utf8';"
     ]
