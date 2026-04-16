@@ -284,6 +284,9 @@ PANEL_ADMIN_PASSWORD={web_admin_pass}
     
     run(["bash", "-c", f"cd {panel_dir} && {python_path} -c \"{admin_setup_code}\""], check=False)
     
+    # Ensure log directory is owned by www-data so the service can write to it
+    run(["chown", "-R", "www-data:www-data", "/var/log/pannel"], check=False)
+    
     # Apache Setup
     run(["a2enmod", "proxy", "proxy_http", "headers", "rewrite"], check=False)
     
