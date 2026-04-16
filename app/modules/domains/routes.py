@@ -60,6 +60,27 @@ def admin_remove_domain(domain_name):
     return redirect(url_for('domains.admin_domains_page'))
 
 
+@domains_bp.route('/admin/domains/<string:domain_name>/ssl/install', methods=['POST'])
+@admin_required_web
+@log_activity('install_ssl')
+def admin_install_ssl(domain_name):
+    """Install SSL certificate for a domain."""
+    ok, msg = domain_svc.install_ssl(domain_name)
+    flash(msg, 'success' if ok else 'danger')
+    return redirect(url_for('domains.admin_domains_page'))
+
+
+@domains_bp.route('/admin/domains/<string:domain_name>/ssl/revoke', methods=['POST'])
+@admin_required_web
+@log_activity('revoke_ssl')
+def admin_revoke_ssl(domain_name):
+    """Revoke SSL certificate for a domain."""
+    ok, msg = domain_svc.revoke_ssl(domain_name)
+    flash(msg, 'success' if ok else 'danger')
+    return redirect(url_for('domains.admin_domains_page'))
+
+
+
 # ════════════════════════════════════════
 # CLIENT WEB ROUTES
 # ════════════════════════════════════════
@@ -93,6 +114,37 @@ def client_remove_domain(domain_name):
     ok, msg = domain_svc.remove_domain(domain_name)
     flash(msg, 'success' if ok else 'danger')
     return redirect(url_for('users.client_dashboard'))
+
+
+@domains_bp.route('/client/domains/<string:domain_name>/ssl/install', methods=['POST'])
+@client_required_web
+@log_activity('client_install_ssl')
+def client_install_ssl(domain_name):
+    """Client installs SSL for their own domain."""
+    domain = domain_svc.get_domain_by_name(domain_name)
+    if not domain or domain.user_id != session['user_id']:
+        flash('Domain not found or access denied.', 'danger')
+        return redirect(url_for('users.client_dashboard'))
+
+    ok, msg = domain_svc.install_ssl(domain_name)
+    flash(msg, 'success' if ok else 'danger')
+    return redirect(url_for('users.client_dashboard'))
+
+
+@domains_bp.route('/client/domains/<string:domain_name>/ssl/revoke', methods=['POST'])
+@client_required_web
+@log_activity('client_revoke_ssl')
+def client_revoke_ssl(domain_name):
+    """Client revokes SSL for their own domain."""
+    domain = domain_svc.get_domain_by_name(domain_name)
+    if not domain or domain.user_id != session['user_id']:
+        flash('Domain not found or access denied.', 'danger')
+        return redirect(url_for('users.client_dashboard'))
+
+    ok, msg = domain_svc.revoke_ssl(domain_name)
+    flash(msg, 'success' if ok else 'danger')
+    return redirect(url_for('users.client_dashboard'))
+
 
 
 # ════════════════════════════════════════
@@ -145,3 +197,24 @@ def api_list_domains():
         user_id = int(claims.get('sub', 0))
         domains = domain_svc.get_domains_for_user(user_id)
     return jsonify({"domains": [d.to_dict() for d in domains]}), 200
+
+
+@domains_bp.route('/api/domain/<string:domain_name>/ssl/install', methods=['POST'])
+@admin_required_api
+def api_install_ssl(domain_name):
+    """API: Install SSL certificate for a domain."""
+    ok, msg = domain_svc.install_ssl(domain_name)
+    if ok:
+        return jsonify({"message": msg}), 200
+    return jsonify({"error": msg}), 400
+
+
+@domains_bp.route('/api/domain/<string:domain_name>/ssl/revoke', methods=['POST'])
+@admin_required_api
+def api_revoke_ssl(domain_name):
+    """API: Revoke SSL certificate for a domain."""
+    ok, msg = domain_svc.revoke_ssl(domain_name)
+    if ok:
+        return jsonify({"message": msg}), 200
+    return jsonify({"error": msg}), 400
+

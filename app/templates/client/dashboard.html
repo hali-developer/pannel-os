@@ -47,22 +47,55 @@
             <div class="card-body">
                 {% if domains %}
                     {% for domain in domains %}
-                    <div style="display:flex;justify-content:space-between;align-items:center;padding:0.65rem 0;border-bottom:1px solid var(--border-default);">
-                        <div>
-                            <a href="http://{{ domain.domain_name }}" target="_blank"
-                               style="color:var(--accent-green);text-decoration:none;font-weight:600;font-size:0.88rem;">
-                                <i class="bi bi-globe"></i> {{ domain.domain_name }}
-                            </a>
-                            <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.15rem;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 0;border-bottom:1px solid var(--border-default);">
+                        <div style="flex:1;min-width:0;">
+                            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                                <a href="{{ 'https' if domain.ssl_enabled else 'http' }}://{{ domain.domain_name }}" target="_blank"
+                                   style="color:var(--accent-green);text-decoration:none;font-weight:600;font-size:0.88rem;white-space:nowrap;">
+                                    <i class="bi bi-globe"></i> {{ domain.domain_name }}
+                                </a>
+                                {% if domain.ssl_enabled %}
+                                <span style="display:inline-flex;align-items:center;gap:0.25rem;background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.25);border-radius:20px;padding:0.1rem 0.55rem;font-size:0.68rem;font-weight:600;">
+                                    <i class="bi bi-lock-fill"></i> HTTPS
+                                </span>
+                                {% else %}
+                                <span style="display:inline-flex;align-items:center;gap:0.25rem;background:rgba(148,163,184,0.1);color:var(--text-dim);border:1px solid var(--border-default);border-radius:20px;padding:0.1rem 0.55rem;font-size:0.68rem;">
+                                    <i class="bi bi-unlock"></i> HTTP
+                                </span>
+                                {% endif %}
+                            </div>
+                            <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                                 {{ domain.document_root }}
                             </div>
                         </div>
-                        <form action="{{ url_for('domains.client_remove_domain', domain_name=domain.domain_name) }}" method="POST">
-                            <button type="submit" class="btn-panel btn-danger-panel btn-sm-panel"
-                                    data-confirm="Remove domain '{{ domain.domain_name }}'?">
-                                <i class="bi bi-trash3"></i>
-                            </button>
-                        </form>
+                        <div style="display:flex;gap:0.35rem;margin-left:0.75rem;flex-shrink:0;">
+                            {% if not domain.ssl_enabled %}
+                            <form action="{{ url_for('domains.client_install_ssl', domain_name=domain.domain_name) }}" method="POST">
+                                <button type="submit" class="btn-panel btn-sm-panel"
+                                        style="background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;border:none;white-space:nowrap;"
+                                        data-confirm="Install free SSL for '{{ domain.domain_name }}'? Make sure DNS points to this server."
+                                        title="Install SSL">
+                                    <i class="bi bi-lock-fill"></i> SSL
+                                </button>
+                            </form>
+                            {% else %}
+                            <form action="{{ url_for('domains.client_revoke_ssl', domain_name=domain.domain_name) }}" method="POST">
+                                <button type="submit" class="btn-panel btn-sm-panel"
+                                        style="background:rgba(251,146,60,0.12);color:#fb923c;border:1px solid rgba(251,146,60,0.3);white-space:nowrap;"
+                                        data-confirm="Revoke SSL for '{{ domain.domain_name }}'? HTTPS will stop working."
+                                        title="Revoke SSL">
+                                    <i class="bi bi-unlock-fill"></i> Revoke
+                                </button>
+                            </form>
+                            {% endif %}
+                            <form action="{{ url_for('domains.client_remove_domain', domain_name=domain.domain_name) }}" method="POST">
+                                <button type="submit" class="btn-panel btn-danger-panel btn-sm-panel"
+                                        data-confirm="Remove domain '{{ domain.domain_name }}'?"
+                                        title="Remove domain">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </form>
+                        </div>
                     </div>
                     {% endfor %}
                 {% else %}

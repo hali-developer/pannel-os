@@ -94,3 +94,61 @@ def get_all_domains() -> list[Domain]:
 def get_domain_by_name(domain_name: str) -> Domain:
     """Get a domain record by name."""
     return Domain.query.filter_by(domain_name=domain_name).first()
+
+
+def install_ssl(domain_name: str) -> tuple[bool, str]:
+    """
+    Install a Let's Encrypt SSL certificate for the given domain:
+      1. Verify domain exists in panel DB
+      2. Run Certbot via ApacheService
+      3. Mark ssl_enabled=True in database
+    """
+    domain = Domain.query.filter_by(domain_name=domain_name).first()
+    if not domain:
+        return False, f"Domain '{domain_name}' not found."
+
+    if domain.ssl_enabled:
+        return False, f"SSL is already enabled for '{domain_name}'."
+
+    admin_email = current_app.config.get('SSL_ADMIN_EMAIL', 'admin@example.com')
+    ok, msg = ApacheService.install_ssl(domain_name, admin_email)
+    if not ok:
+        return False, msg
+
+    try:
+        domain.ssl_enabled = True
+        db.session.commit()
+        logger.info(f"SSL enabled for domain: {domain_name}")
+        return True, f"SSL certificate installed for '{domain_name}'. HTTPS is now active."
+    except Exception as e:
+        db.session.rollback()
+        return False, f"SSL installed on server but DB update failed: {str(e)}"
+
+
+def revoke_ssl(domain_name: str) -> tuple[bool, str]:
+    """
+    Remove the Let's Encrypt SSL certificate for the given domain:
+      1. Verify domain exists in panel DB
+      2. Delete cert via Certbot
+      3. Mark ssl_enabled=False in database
+    """
+    domain = Domain.query.filter_by(domain_name=domain_name).first()
+    if not domain:
+        return False, f"Domain '{domain_name}' not found."
+
+    if not domain.ssl_enabled:
+        return False, f"SSL is not enabled for '{domain_name}'."
+
+    ok, msg = ApacheService.revoke_ssl(domain_name)
+    if not ok:
+        return False, msg
+
+    try:
+        domain.ssl_enabled = False
+        db.session.commit()
+        logger.info(f"SSL removed for domain: {domain_name}")
+        return True, f"SSL certificate removed for '{domain_name}'."
+    except Exception as e:
+        db.session.rollback()
+        return False, f"SSL removed on server but DB update failed: {str(e)}"
+

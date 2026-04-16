@@ -290,8 +290,14 @@ PANEL_ADMIN_PASSWORD={web_admin_pass}
     run(["chown", "-R", "www-data:www-data", "/var/log/pannel"], check=False)
     
     # Apache Setup
-    run(["a2enmod", "proxy", "proxy_http", "headers", "rewrite"], check=False)
+    run(["a2enmod", "proxy", "proxy_http", "headers", "rewrite", "ssl"], check=False)
     
+    # Deploy SSL parameters
+    ssl_params_src = os.path.join(panel_dir, 'apache2', 'ssl_params.conf')
+    if os.path.exists(ssl_params_src):
+        run(["cp", ssl_params_src, "/etc/apache2/conf-available/ssl-params.conf"])
+        run(["a2enconf", "ssl-params"], check=False)
+
    # Ensure Config for phppgadmin is available (if present)
     if os.path.exists('/etc/phppgadmin/apache.conf'):
         run(["ln", "-sf", "/etc/phppgadmin/apache.conf", "/etc/apache2/conf-available/phppgadmin.conf"], check=False)
@@ -387,12 +393,13 @@ www-data ALL=(ALL) NOPASSWD: \\
     /usr/bin/systemctl restart apache2, \\
     /usr/bin/systemctl restart proftpd, \\
     /usr/local/bin/add_domain.sh, \\
-    /usr/local/bin/remove_domain.sh
+    /usr/local/bin/remove_domain.sh, \\
+    /usr/bin/certbot
 """
     with open('/etc/sudoers.d/vps-panel', 'w') as f:
         f.write(sudoers_rule)
     run(["chmod", "440", "/etc/sudoers.d/vps-panel"], check=False)
-    print("  ✅ Sudoers rules configured.")
+    print("  ✅ Sudoers rules configured with SSL support.")
 
     print("\n" + "=" * 60)
 

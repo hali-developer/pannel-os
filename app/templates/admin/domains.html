@@ -41,12 +41,30 @@
             <div class="card-body">
                 <h6 style="font-size:0.85rem;margin-bottom:0.75rem;"><i class="bi bi-info-circle" style="color:var(--accent-blue);"></i> How It Works</h6>
                 <ul style="font-size:0.78rem;color:var(--text-secondary);padding-left:1.2rem;margin:0;line-height:1.8;">
-                    <li>Generates Nginx server block automatically</li>
-                    <li>Writes to <code style="font-size:0.72rem;">/etc/nginx/sites-available/</code></li>
-                    <li>Creates symlink in <code style="font-size:0.72rem;">sites-enabled/</code></li>
-                    <li>Tests config with <code style="font-size:0.72rem;">nginx -t</code></li>
-                    <li>Reloads Nginx gracefully</li>
+                    <li>Runs <code style="font-size:0.72rem;">add_domain.sh</code> to create the VirtualHost</li>
+                    <li>Writes config to <code style="font-size:0.72rem;">/etc/apache2/sites-available/</code></li>
+                    <li>Enables site and reloads Apache gracefully</li>
                 </ul>
+            </div>
+        </div>
+
+        <!-- SSL Info Card -->
+        <div class="panel-card mt-3" style="border:1px solid rgba(14,165,233,0.25);background:rgba(14,165,233,0.04);">
+            <div class="card-body">
+                <h6 style="font-size:0.85rem;margin-bottom:0.75rem;color:#38bdf8;">
+                    <i class="bi bi-shield-lock-fill"></i> Free SSL via Let's Encrypt
+                </h6>
+                <ul style="font-size:0.78rem;color:var(--text-secondary);padding-left:1.2rem;margin:0;line-height:1.8;">
+                    <li>Click <strong style="color:#38bdf8;">SSL</strong> next to any domain</li>
+                    <li>Certbot issues a certificate automatically</li>
+                    <li>Enables HTTPS + redirects HTTP → HTTPS</li>
+                    <li>Auto-renews every 90 days</li>
+                    <li>Requires domain DNS pointing to this server</li>
+                </ul>
+                <div style="margin-top:0.75rem;padding:0.5rem 0.75rem;background:rgba(251,146,60,0.08);border-radius:6px;border:1px solid rgba(251,146,60,0.2);font-size:0.72rem;color:#fb923c;">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    Domain must resolve to this server's IP before installing SSL.
+                </div>
             </div>
         </div>
     </div>
@@ -92,17 +110,36 @@
                                 </td>
                                 <td>
                                     {% if domain.ssl_enabled %}
-                                        <span class="badge-panel badge-active"><i class="bi bi-lock-fill"></i> SSL</span>
+                                        <span class="badge-panel badge-active"><i class="bi bi-lock-fill"></i> Active</span>
                                     {% else %}
-                                        <span class="badge-panel badge-inactive">No SSL</span>
+                                        <span class="badge-panel badge-inactive"><i class="bi bi-unlock"></i> None</span>
                                     {% endif %}
                                 </td>
                                 <td style="font-size:0.78rem;">{{ domain.created_at.strftime('%b %d, %Y') if domain.created_at else '—' }}</td>
-                                <td class="actions-cell">
+                                <td class="actions-cell" style="display:flex;gap:0.35rem;flex-wrap:wrap;">
+                                    {% if not domain.ssl_enabled %}
+                                    <form action="{{ url_for('domains.admin_install_ssl', domain_name=domain.domain_name) }}" method="POST">
+                                        <button type="submit" class="btn-panel btn-sm-panel"
+                                                style="background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;border:none;"
+                                                data-confirm="Install SSL for '{{ domain.domain_name }}'? Certbot will issue a Let's Encrypt certificate."
+                                                title="Install SSL">
+                                            <i class="bi bi-lock-fill"></i> SSL
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <form action="{{ url_for('domains.admin_revoke_ssl', domain_name=domain.domain_name) }}" method="POST">
+                                        <button type="submit" class="btn-panel btn-sm-panel"
+                                                style="background:rgba(251,146,60,0.15);color:#fb923c;border:1px solid rgba(251,146,60,0.3);"
+                                                data-confirm="Revoke SSL for '{{ domain.domain_name }}'? HTTPS will stop working."
+                                                title="Revoke SSL">
+                                            <i class="bi bi-unlock-fill"></i> Revoke
+                                        </button>
+                                    </form>
+                                    {% endif %}
                                     <form action="{{ url_for('domains.admin_remove_domain', domain_name=domain.domain_name) }}" method="POST">
                                         <button type="submit" class="btn-panel btn-danger-panel btn-sm-panel"
-                                                data-confirm="Remove domain '{{ domain.domain_name }}'? Nginx config will be deleted." title="Remove">
-                                            <i class="bi bi-trash3"></i> Remove
+                                                data-confirm="Remove domain '{{ domain.domain_name }}'? Apache config will be deleted." title="Remove">
+                                            <i class="bi bi-trash3"></i>
                                         </button>
                                     </form>
                                 </td>

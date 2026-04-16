@@ -41,6 +41,9 @@ class BaseConfig:
     # Web Root
     WEB_ROOT = os.environ.get('WEB_ROOT', '/var/www')
 
+    # SSL (Let's Encrypt / Certbot)
+    SSL_ADMIN_EMAIL = os.environ.get('SSL_ADMIN_EMAIL', 'hali35275@gmail.com')
+
     # PostgreSQL (Client Databases)
     POSTGRESQL_HOST = os.environ.get('POSTGRESQL_HOST', 'localhost')
     POSTGRESQL_PORT = int(os.environ.get('POSTGRESQL_PORT', 5432))
@@ -72,8 +75,8 @@ class DevelopmentConfig(BaseConfig):
 class ProductionConfig(BaseConfig):
     """Production configuration."""
     DEBUG = False
-    JWT_COOKIE_SECURE = False  # Set to True only when using HTTPS
-    SESSION_COOKIE_SECURE = False  # Set to True only when using HTTPS
+    JWT_COOKIE_SECURE = True   # HTTPS enforced in production
+    SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
 
