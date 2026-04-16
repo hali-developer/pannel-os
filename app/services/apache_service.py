@@ -10,7 +10,7 @@ import subprocess
 def run_domain_script(domain: str):
     try:
         result = subprocess.run(
-            ["/usr/local/bin/add_domain.sh", domain],
+            ["sudo", "/usr/local/bin/add_domain.sh", domain],
             capture_output=True,
             text=True
         )
@@ -21,7 +21,7 @@ def run_domain_script(domain: str):
 def remove_domain_script(domain: str):
     try:
         result = subprocess.run(
-            ["/usr/local/bin/remove_domain.sh", domain],
+            ["sudo", "/usr/local/bin/remove_domain.sh", domain],
             capture_output=True,
             text=True
         )

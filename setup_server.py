@@ -362,28 +362,32 @@ WantedBy=multi-user.target
         os.remove('/etc/phpmyadmin/conf.d/vps-panel.inc.php')
 
     # Create sudoers rule for panel
-    sudoers_rule = f"""# VPS Panel — allow www-data to manage system users and services
-www-data ALL=(ALL) NOPASSWD: /usr/sbin/useradd, /usr/sbin/userdel, /usr/sbin/usermod
-www-data ALL=(ALL) NOPASSWD: /usr/bin/chpasswd
-www-data ALL=(ALL) NOPASSWD: /bin/chown, /bin/chmod, /bin/mkdir, /bin/rm, /bin/mv, /bin/cp, /bin/ln
-www-data ALL=(ALL) NOPASSWD: /usr/sbin/a2ensite, /usr/sbin/a2dissite, /usr/sbin/apache2ctl
-www-data ALL=(ALL) NOPASSWD: /bin/systemctl reload apache2, /bin/systemctl restart apache2
-www-data ALL=(ALL) NOPASSWD: /bin/systemctl restart vsftpd
-www-data ALL=(ALL) NOPASSWD: \
-/usr/sbin/useradd, \
-/usr/sbin/userdel, \
-/usr/sbin/usermod, \
-/usr/sbin/chpasswd, \
-/bin/chown, \
-/bin/chmod, \
-/bin/mkdir, \
-/bin/rm, \
-/bin/mv, \
-/usr/sbin/a2ensite, \
-/usr/sbin/a2dissite, \
-/usr/sbin/apache2ctl, \
-/bin/systemctl reload apache2, \
-/bin/systemctl restart vsftpd
+    sudoers_rule = """# VPS Panel — allow www-data to manage system users and services
+www-data ALL=(ALL) NOPASSWD: \\
+    /usr/sbin/useradd, \\
+    /usr/sbin/userdel, \\
+    /usr/sbin/usermod, \\
+    /usr/sbin/chpasswd, \\
+    /usr/bin/chpasswd, \\
+    /bin/chown, \\
+    /usr/bin/chown, \\
+    /bin/chmod, \\
+    /usr/bin/chmod, \\
+    /bin/mkdir, \\
+    /usr/bin/mkdir, \\
+    /bin/rm, \\
+    /usr/bin/rm, \\
+    /bin/mv, \\
+    /usr/bin/mv, \\
+    /usr/sbin/a2ensite, \\
+    /usr/sbin/a2dissite, \\
+    /usr/sbin/a2enconf, \\
+    /usr/sbin/apache2ctl, \\
+    /usr/bin/systemctl reload apache2, \\
+    /usr/bin/systemctl restart apache2, \\
+    /usr/bin/systemctl restart proftpd, \\
+    /usr/local/bin/add_domain.sh, \\
+    /usr/local/bin/remove_domain.sh
 """
     with open('/etc/sudoers.d/vps-panel', 'w') as f:
         f.write(sudoers_rule)
@@ -406,13 +410,25 @@ if [ -z "$DOMAIN" ]; then
   exit 1
 fi
 
-echo "Creating directory..."
-mkdir -p "$WEBROOT"
+# Validate domain name (basic check)
+if [[ ! "$DOMAIN" =~ ^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
+  echo "Invalid domain name: $DOMAIN"
+  exit 1
+fi
 
+echo "Creating web directory..."
+mkdir -p "$WEBROOT"
 chown -R www-data:www-data "$BASE_PATH/$DOMAIN"
 chmod -R 755 "$BASE_PATH/$DOMAIN"
 
-echo "Creating Apache config..."
+# Write a default index page
+cat > "$WEBROOT/index.html" <<HTML
+<!DOCTYPE html>
+<html><head><title>$DOMAIN</title></head>
+<body><h1>$DOMAIN is live!</h1><p>Hosted on VPS Panel v3.0</p></body></html>
+HTML
+
+echo "Creating Apache VirtualHost config..."
 cat > "$APACHE_CONF" <<EOL
 <VirtualHost *:80>
     ServerName $DOMAIN
@@ -420,12 +436,13 @@ cat > "$APACHE_CONF" <<EOL
     DocumentRoot $WEBROOT
 
     <Directory $WEBROOT>
+        Options -Indexes +FollowSymLinks
         AllowOverride All
         Require all granted
     </Directory>
 
-    ErrorLog \${APACHE_LOG_DIR}/$DOMAIN_error.log
-    CustomLog \${APACHE_LOG_DIR}/$DOMAIN_access.log combined
+    ErrorLog \${APACHE_LOG_DIR}/${DOMAIN}_error.log
+    CustomLog \${APACHE_LOG_DIR}/${DOMAIN}_access.log combined
 </VirtualHost>
 EOL
 
@@ -435,16 +452,18 @@ a2ensite "$DOMAIN.conf"
 echo "Testing Apache config..."
 apache2ctl configtest
 if [ $? -ne 0 ]; then
-  echo "Apache config test failed"
+  echo "Apache config test failed — rolling back"
+  a2dissite "$DOMAIN.conf"
+  rm -f "$APACHE_CONF"
   exit 1
 fi
 
 echo "Reloading Apache..."
 systemctl reload apache2
 
-echo "Done ✅"
+echo "Done ✅ $DOMAIN deployed to $WEBROOT"
 exit 0
-        """)
+""")
     run(["chmod", "+x", "/usr/local/bin/add_domain.sh"], check=False)
 
     with open('/usr/local/bin/remove_domain.sh', 'w') as f:
@@ -482,7 +501,7 @@ systemctl reload apache2
 
 echo "Domain $DOMAIN removed successfully ✅"
 exit 0
-    """)
+""")
 
     # Make it executable
     run(["chmod", "+x", "/usr/local/bin/remove_domain.sh"], check=False)
