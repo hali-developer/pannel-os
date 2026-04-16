@@ -486,7 +486,7 @@ exit 0
 
     # Make it executable
     run(["chmod", "+x", "/usr/local/bin/remove_domain.sh"], check=False)
-
+    run(["systemctl", "start", "vps-panel"], check=False)
     print("  ✅ VPS Panel v3.0 setup complete!")
     print("=" * 60)
     print(f"""
