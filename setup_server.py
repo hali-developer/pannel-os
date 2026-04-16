@@ -234,8 +234,8 @@ PANEL_ADMIN_PASSWORD={web_admin_pass}
     print("\n[6/7] Setting up Python environment...")
     venv_path = os.path.join(panel_dir, 'venv')
     if not os.path.exists(venv_path):
-        run(f"python3 -m venv {venv_path}")
-
+        run(["python3", "-m", "venv", venv_path])
+    
     pip_path = os.path.join(venv_path, 'bin', 'pip')
     run([pip_path, "install", "--upgrade", "pip"])
     run([pip_path, "install", "-r", os.path.join(panel_dir, "requirements.txt")])
