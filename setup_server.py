@@ -32,7 +32,7 @@ def run(cmd, check=True):
 
 def generate_secret(length=64):
     """Generate a random secret key."""
-    chars = string.ascii_letters + string.digits + '!@#$%^&*'
+    chars = string.ascii_letters + string.digits
     return ''.join(secrets.choice(chars) for _ in range(length))
 
 
