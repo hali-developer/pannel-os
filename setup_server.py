@@ -109,6 +109,8 @@ def main():
 
     pg_cmds = [
         f"ALTER USER {mysql_admin_user} WITH PASSWORD '{mysql_admin_pass}';",
+        # Terminate any existing connections to the database to safely drop it
+        f"SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = '{pannel_db}' AND pid <> pg_backend_pid();",
         f"DROP DATABASE IF EXISTS {pannel_db};",
         f"DROP USER IF EXISTS {pannel_user};",
         f"CREATE USER {pannel_user} WITH ENCRYPTED PASSWORD '{pannel_pass}';",
@@ -322,7 +324,7 @@ PANEL_ADMIN_PASSWORD={web_admin_pass}
 </VirtualHost>
 """
     # Ensure port 8080 is configured
-    run(["echo", "Listen 8080", ">", "/etc/apache2/conf-available/vps-panel-ports.conf"], check=False)
+    run(["bash", "-c", "echo 'Listen 8080' > /etc/apache2/conf-available/vps-panel-ports.conf"], check=False)
     run(["a2enconf", "vps-panel-ports"], check=False)
     with open('/etc/apache2/sites-available/vps-panel.conf', 'w') as f:
         f.write(panel_apache)
