@@ -107,31 +107,28 @@ def main():
     web_admin_user = "admin"
     web_admin_pass = generate_secret(12)
 
-    # In PostgreSQL, role creation and database creation need to happen sequentially usually, but psql handles it if sent as commands.
-    pg_cmds = f"""
--- Ensure admin has new password
-ALTER USER {mysql_admin_user} WITH PASSWORD '{mysql_admin_pass}';
-
--- Create internal panel database role
-CREATE USER {pannel_user} WITH ENCRYPTED PASSWORD '{pannel_pass}';
-
--- Create internal panel database
-CREATE DATABASE {pannel_db} OWNER {pannel_user} ENCODING 'utf8';
-"""
+    pg_cmds = [
+        f"ALTER USER {mysql_admin_user} WITH PASSWORD '{mysql_admin_pass}';",
+        f"CREATE USER {pannel_user} WITH ENCRYPTED PASSWORD '{pannel_pass}';",
+        f"CREATE DATABASE {pannel_db} OWNER {pannel_user} ENCODING 'utf8';"
+    ]
     
-    cmd = ['sudo', '-u', 'postgres', 'psql', '-c', pg_cmds]
-
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True)
-        if proc.returncode == 0:
-            print("  ✅ PostgreSQL panel database and users configured.")
-        else:
-             if 'already exists' in proc.stderr:
-                 print("  ✅ PostgreSQL already configured (or partially configured).")
-             else:
-                 print(f"  ❌ PostgreSQL setup failed: {proc.stderr}")
-    except Exception as e:
-        print(f"  ❌ PostgreSQL setup error: {e}")
+    setup_failed = False
+    for sql in pg_cmds:
+        cmd = ['sudo', '-u', 'postgres', 'psql', '-c', sql]
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+            if proc.returncode != 0 and 'already exists' not in proc.stderr:
+                print(f"  ❌ PostgreSQL setup failed: {proc.stderr}")
+                setup_failed = True
+                break
+        except Exception as e:
+            print(f"  ❌ PostgreSQL setup error: {e}")
+            setup_failed = True
+            break
+            
+    if not setup_failed:
+        print("  ✅ PostgreSQL panel database and users configured.")
 
     # ── Step 3: proftpd Configuration ──
     print("\n[3/7] Configuring proftpd...")
@@ -272,6 +269,10 @@ PANEL_ADMIN_PASSWORD={web_admin_pass}
     else:
         # Fallback to python init
         run(["bash", "-c", f"cd {panel_dir} && {python_path} -c \"from app import create_app; create_app()\""])
+
+    # Grant privileges to the pannel user so it can modify tables created by the postgres system user
+    run(["sudo", "-u", "postgres", "psql", "-d", pannel_db, "-c", f"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {pannel_user};"], check=False)
+    run(["sudo", "-u", "postgres", "psql", "-d", pannel_db, "-c", f"GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {pannel_user};"], check=False)
 
     # Ensure Web Admin user is created correctly with the dynamically generated password
     admin_setup_code = f"from app import create_app; from app.extensions import db; from app.models.user import User; from werkzeug.security import generate_password_hash; app = create_app(); app.app_context().push(); " \
