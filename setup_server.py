@@ -315,44 +315,7 @@ PANEL_ADMIN_PASSWORD={web_admin_pass}
         "-out", "/etc/ssl/certs/vps-panel.crt"
     ], check=False)
 
-    panel_apache = f"""<VirtualHost *:8243>
-    ServerName _
-
-    SSLEngine on
-    SSLCertificateFile /etc/ssl/certs/vps-panel.crt
-    SSLCertificateKeyFile /etc/ssl/private/vps-panel.key
-
-    # Exclude phppgadmin from proxying to Flask
-    ProxyPass /phppgadmin/ !
-    ProxyPass /phppgadmin !
-    Alias /phppgadmin /usr/share/phppgadmin
-    <Directory /usr/share/phppgadmin>
-        Options FollowSymLinks
-        DirectoryIndex index.php
-        AllowOverride All
-        Require all granted
-    </Directory>
-
-    ProxyPreserveHost On
-    ProxyPass / http://127.0.0.1:5000/
-    ProxyPassReverse / http://127.0.0.1:5000/
-
-    Alias /static {panel_dir}/static
-    <Directory {panel_dir}/static>
-        Require all granted
-    </Directory>
-
-    ErrorLog ${{APACHE_LOG_DIR}}/panel_error.log
-    CustomLog ${{APACHE_LOG_DIR}}/panel_access.log combined
-</VirtualHost>
-"""
-    # Ensure port 8243 is configured
-    run(["bash", "-c", "echo 'Listen 8243' > /etc/apache2/conf-available/vps-panel-ports.conf"], check=False)
-    run(["a2enconf", "vps-panel-ports"], check=False)
-    with open('/etc/apache2/sites-available/vps-panel.conf', 'w') as f:
-        f.write(panel_apache)
-
-    run(["a2ensite", "vps-panel.conf"], check=False)
+    # Restart apache to apply phpPgAdmin global configuration.
     run(["systemctl", "restart", "apache2"], check=False)
 
     # Create systemd service for Gunicorn
@@ -367,7 +330,7 @@ User=www-data
 Group=www-data
 WorkingDirectory={panel_dir}
 Environment="PATH={venv_path}/bin"
-ExecStart={gunicorn_path} --workers 3 --bind 127.0.0.1:5000 --timeout 120 run:app
+ExecStart={gunicorn_path} --workers 3 --bind 0.0.0.0:8242 --certfile=/etc/ssl/certs/vps-panel.crt --keyfile=/etc/ssl/private/vps-panel.key --timeout 120 run:app
 Restart=always
 RestartSec=5
 
@@ -533,8 +496,8 @@ exit 0
     print("  ✅ VPS Panel v3.0 setup complete!")
     print("=" * 60)
     print(f"""
-  Panel URL:      https://YOUR_IP:8243
-  phpPgAdmin:     https://YOUR_IP:8243/phppgadmin
+  Panel URL:      https://YOUR_IP:8242
+  phpPgAdmin:     http://YOUR_IP/phppgadmin
   
   Default login:  {web_admin_user} / {web_admin_pass}
   
