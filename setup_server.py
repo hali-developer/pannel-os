@@ -306,7 +306,7 @@ PANEL_ADMIN_PASSWORD={web_admin_pass}
         "-out", "/etc/ssl/certs/vps-panel.crt"
     ], check=False)
 
-    # Restart apache to apply phpPgAdmin global configuration.
+    # Restart apache to apply phpPgAdmin global configuration and clear out old disabled sites.
     run(["systemctl", "restart", "apache2"], check=False)
 
     # Create systemd service for Gunicorn
