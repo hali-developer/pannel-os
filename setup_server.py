@@ -110,7 +110,7 @@ def main():
         f"CREATE USER {pannel_user} WITH ENCRYPTED PASSWORD '{pannel_pass}';",
         f"CREATE DATABASE {pannel_db} OWNER {pannel_user} ENCODING 'utf8';"
     ]
-    
+
     setup_failed = False
     for sql in pg_cmds:
         cmd = ['sudo', '-u', 'postgres', 'psql', '-c', sql]
@@ -175,9 +175,6 @@ DefaultRoot ~
     with open('/etc/proftpd/proftpd.conf', 'w') as f:
         f.write(ftpd_conf)
 
-    # os.makedirs('/etc/proftpd/conf.d', exist_ok=True)
-    # if not os.path.exists('/etc/proftpd.userlist'):
-    #     with open('/etc/proftpd.userlist', 'w') as f: f.write('')
     run(["systemctl", "restart", "proftpd"], check=False)
     print("  ✅ proftpd configured with chroot + local users.")
 
