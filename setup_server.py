@@ -300,13 +300,30 @@ PANEL_ADMIN_PASSWORD={web_admin_pass}
 
    # Ensure Config for phppgadmin is available (if present)
     if os.path.exists('/etc/phppgadmin/apache.conf'):
+        run(["sed", "-i", "s/Require local/Require all granted/g", "/etc/phppgadmin/apache.conf"], check=False)
         run(["ln", "-sf", "/etc/phppgadmin/apache.conf", "/etc/apache2/conf-available/phppgadmin.conf"], check=False)
         run(["a2enconf", "phppgadmin"], check=False)
 
-    panel_apache = f"""<VirtualHost *:8080>
+    if os.path.exists('/etc/phppgadmin/config.inc.php'):
+        run(["sed", "-i", "s/$conf\\['extra_login_security'\\] = true;/$conf\\['extra_login_security'\\] = false;/g", "/etc/phppgadmin/config.inc.php"], check=False)
+
+    # Generate self-signed cert for panel
+    run([
+        "openssl", "req", "-x509", "-nodes", "-days", "3650",
+        "-newkey", "rsa:2048", "-subj", "/CN=vps-panel",
+        "-keyout", "/etc/ssl/private/vps-panel.key",
+        "-out", "/etc/ssl/certs/vps-panel.crt"
+    ], check=False)
+
+    panel_apache = f"""<VirtualHost *:8243>
     ServerName _
 
+    SSLEngine on
+    SSLCertificateFile /etc/ssl/certs/vps-panel.crt
+    SSLCertificateKeyFile /etc/ssl/private/vps-panel.key
+
     # Exclude phppgadmin from proxying to Flask
+    ProxyPass /phppgadmin/ !
     ProxyPass /phppgadmin !
     Alias /phppgadmin /usr/share/phppgadmin
     <Directory /usr/share/phppgadmin>
@@ -329,8 +346,8 @@ PANEL_ADMIN_PASSWORD={web_admin_pass}
     CustomLog ${{APACHE_LOG_DIR}}/panel_access.log combined
 </VirtualHost>
 """
-    # Ensure port 8080 is configured
-    run(["bash", "-c", "echo 'Listen 8080' > /etc/apache2/conf-available/vps-panel-ports.conf"], check=False)
+    # Ensure port 8243 is configured
+    run(["bash", "-c", "echo 'Listen 8243' > /etc/apache2/conf-available/vps-panel-ports.conf"], check=False)
     run(["a2enconf", "vps-panel-ports"], check=False)
     with open('/etc/apache2/sites-available/vps-panel.conf', 'w') as f:
         f.write(panel_apache)
@@ -516,8 +533,8 @@ exit 0
     print("  ✅ VPS Panel v3.0 setup complete!")
     print("=" * 60)
     print(f"""
-  Panel URL:      http://YOUR_IP:5246
-  phpPgAdmin:     http://YOUR_IP:5246/phppgadmin
+  Panel URL:      https://YOUR_IP:8243
+  phpPgAdmin:     https://YOUR_IP:8243/phppgadmin
   
   Default login:  {web_admin_user} / {web_admin_pass}
   
