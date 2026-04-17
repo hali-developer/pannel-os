@@ -81,17 +81,11 @@ def main():
     ])
     print("  ✅ System packages installed.")
 
-    # ── Move Code to /var/www/pannel ──
-    print("\n[1.5/7] Moving panel code to /var/www/pannel...")
+    # ── Panel Directory Configuration ──
+    print("\n[1.5/7] Setting panel directory...")
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    panel_dir = "/var/www/pannel"
-    
-    if current_dir != panel_dir:
-        os.makedirs(panel_dir, exist_ok=True)
-        # Using bash to expand the shell wildcard properly if needed, but safe here with current_dir/.
-        run(["bash", "-c", f"cp -a {current_dir}/. {panel_dir}/"], check=False)
-        run(["chown", "-R", "root:root", panel_dir], check=False)
-        print(f"  ✅ Code moved to {panel_dir}.")
+    panel_dir = current_dir
+    print(f"  ✅ Running Panel directly from: {panel_dir}")
 
     # ── Step 2: PostgreSQL Setup (Panel & Admin) ──
     print("\n[2/7] Configuring PostgreSQL...")
@@ -105,7 +99,7 @@ def main():
     pannel_pass = generate_secret(16)
     
     web_admin_user = "admin"
-    web_admin_pass = generate_secret(12)
+    web_admin_pass = "admin"
 
     pg_cmds = [
         f"ALTER USER {mysql_admin_user} WITH PASSWORD '{mysql_admin_pass}';",
@@ -330,7 +324,7 @@ User=www-data
 Group=www-data
 WorkingDirectory={panel_dir}
 Environment="PATH={venv_path}/bin"
-ExecStart={gunicorn_path} --workers 3 --bind 0.0.0.0:8242 --certfile=/etc/ssl/certs/vps-panel.crt --keyfile=/etc/ssl/private/vps-panel.key --timeout 120 run:app
+ExecStart={gunicorn_path} --workers 3 --bind 0.0.0.0:8000 --certfile=/etc/ssl/certs/vps-panel.crt --keyfile=/etc/ssl/private/vps-panel.key --timeout 120 run:app
 Restart=always
 RestartSec=5
 
@@ -496,7 +490,7 @@ exit 0
     print("  ✅ VPS Panel v3.0 setup complete!")
     print("=" * 60)
     print(f"""
-  Panel URL:      https://YOUR_IP:8242
+  Panel URL:      https://YOUR_IP:8000
   phpPgAdmin:     http://YOUR_IP/phppgadmin
   
   Default login:  {web_admin_user} / {web_admin_pass}
