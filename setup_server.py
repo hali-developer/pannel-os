@@ -279,16 +279,50 @@ PANEL_ADMIN_PASSWORD={web_admin_pass}
         run(["bash", "-c", f"cd {panel_dir} && {python_path} -c \"from app import create_app; create_app()\""])
 
     # Grant privileges to the pannel user so it can modify tables created by the postgres system user
+    run(["sudo", "-u", "postgres", "psql", "-d", pannel_db, "-c", f"GRANT USAGE, CREATE ON SCHEMA public TO {pannel_user};"], check=False)
     run(["sudo", "-u", "postgres", "psql", "-d", pannel_db, "-c", f"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {pannel_user};"], check=False)
     run(["sudo", "-u", "postgres", "psql", "-d", pannel_db, "-c", f"GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {pannel_user};"], check=False)
 
-    # Ensure Web Admin user is created correctly with the dynamically generated password
-    admin_setup_code = f"from app import create_app; from app.extensions import db; from app.models.user import User; from werkzeug.security import generate_password_hash; app = create_app(); app.app_context().push(); " \
-                       f"u = User.query.filter_by(username='{web_admin_user}').first(); " \
-                       f"db.session.add(User(username='{web_admin_user}', password_hash=generate_password_hash('{web_admin_pass}'), role='admin', is_active=True)) if not u else None; " \
-                       f"db.session.commit()"
+    # Ensure Web Admin user is created correctly
+    admin_setup_script = f"""
+import sys
+import os
+sys.path.insert(0, '{panel_dir}')
+from app import create_app
+from app.extensions import db
+from app.models.user import User
+from werkzeug.security import generate_password_hash
+
+try:
+    app = create_app()
+    with app.app_context():
+        u = User.query.filter_by(username='{web_admin_user}').first()
+        if not u:
+            new_admin = User(
+                username='{web_admin_user}',
+                password_hash=generate_password_hash('{web_admin_pass}'),
+                role='admin',
+                is_active=True,
+                home_directory=os.path.join(app.config.get('WEB_ROOT', '/var/www'), 'admin')
+            )
+            db.session.add(new_admin)
+            db.session.commit()
+            print("Admin user created successfully.")
+        else:
+            # Update password just in case
+            u.password_hash = generate_password_hash('{web_admin_pass}')
+            db.session.commit()
+            print("Admin user updated successfully.")
+except Exception as e:
+    print(f"Error creating admin user: {{e}}")
+    sys.exit(1)
+"""
+    script_path = os.path.join(panel_dir, 'create_admin.py')
+    with open(script_path, 'w') as f:
+        f.write(admin_setup_script)
     
-    run(["bash", "-c", f"cd {panel_dir} && {python_path} -c \"{admin_setup_code}\""], check=False)
+    run([python_path, script_path], check=False)
+    os.remove(script_path)
     
     # Ensure log directory is owned by www-data so the service can write to it
     run(["chown", "-R", "www-data:www-data", "/var/log/pannel"], check=False)
