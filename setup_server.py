@@ -376,6 +376,8 @@ except Exception as e:
     if os.path.exists('/etc/phppgadmin/config.inc.php'):
         # Allow postgres superuser to login (extra_login_security blocks it by default)
         run(["sed", "-i", "s/$conf\\['extra_login_security'\\] = true;/$conf\\['extra_login_security'\\] = false;/g", "/etc/phppgadmin/config.inc.php"], check=False)
+        # Only show databases owned by the logged-in user — enforces per-user isolation in phpPgAdmin
+        run(["sed", "-i", "s/$conf\\['owned_only'\\] = false;/$conf\\['owned_only'\\] = true;/g", "/etc/phppgadmin/config.inc.php"], check=False)
 
     # Restart apache to apply phpPgAdmin global configuration and clear out old disabled sites.
     run(["systemctl", "restart", "apache2"], check=False)
