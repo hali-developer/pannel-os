@@ -313,41 +313,10 @@ PANEL_ADMIN_PASSWORD={web_admin_pass}
     if os.path.exists('/etc/phppgadmin/config.inc.php'):
         run(["sed", "-i", "s/$conf\\['extra_login_security'\\] = true;/$conf\\['extra_login_security'\\] = false;/g", "/etc/phppgadmin/config.inc.php"], check=False)
 
-    # Generate self-signed cert for panel
-    run([
-        "openssl", "req", "-x509", "-nodes", "-days", "3650",
-        "-newkey", "rsa:2048", "-subj", "/CN=vps-panel",
-        "-keyout", "/etc/ssl/private/vps-panel.key",
-        "-out", "/etc/ssl/certs/vps-panel.crt"
-    ], check=False)
-
     # Restart apache to apply phpPgAdmin global configuration and clear out old disabled sites.
     run(["systemctl", "restart", "apache2"], check=False)
 
-    # Create systemd service for Gunicorn
-    gunicorn_path = os.path.join(venv_path, 'bin', 'gunicorn')
-    systemd_service = f"""[Unit]
-Description=VPS Panel Gunicorn Service
-After=network.target postgresql.service
 
-[Service]
-Type=simple
-User=www-data
-Group=www-data
-WorkingDirectory={panel_dir}
-Environment="PATH={venv_path}/bin"
-ExecStart={gunicorn_path} --workers 3 --bind 0.0.0.0:8000 --certfile=/etc/ssl/certs/vps-panel.crt --keyfile=/etc/ssl/private/vps-panel.key --timeout 120 run:app
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-"""
-    with open('/etc/systemd/system/vps-panel.service', 'w') as f:
-        f.write(systemd_service)
-    run(["systemctl", "daemon-reload"], check=False)
-    run(["systemctl", "enable", "vps-panel"], check=False)
-    run(["systemctl", "start", "vps-panel"], check=False)
 
     # Remove out of date phpmyadmin configs for safety
     if os.path.exists('/etc/phpmyadmin/conf.d/vps-panel.inc.php'):
@@ -594,11 +563,36 @@ echo "Done ✅ SSL configured for $DOMAIN!"
 exit 0
 """)
     run(["chmod", "+x", "/usr/local/bin/add_ssl.sh"], check=False)
+
+    # Create systemd service for Gunicorn after all shell scripts are written
+    gunicorn_path = os.path.join(venv_path, 'bin', 'gunicorn')
+    systemd_service = f"""[Unit]
+Description=VPS Panel Gunicorn Service
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory={panel_dir}
+Environment="PATH={venv_path}/bin"
+ExecStart={gunicorn_path} --workers 3 --bind 0.0.0.0:8000 --timeout 120 run:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+"""
+    with open('/etc/systemd/system/vps-panel.service', 'w') as f:
+        f.write(systemd_service)
+    
+    run(["systemctl", "daemon-reload"], check=False)
+    run(["systemctl", "enable", "vps-panel"], check=False)
     run(["systemctl", "start", "vps-panel"], check=False)
     print("  ✅ VPS Panel v3.0 setup complete!")
     print("=" * 60)
     print(f"""
-  Panel URL:      https://YOUR_IP:8000
+  Panel URL:      http://YOUR_IP:8000
   phpPgAdmin:     http://YOUR_IP/phppgadmin
   
   Default login:  {web_admin_user} / {web_admin_pass}
