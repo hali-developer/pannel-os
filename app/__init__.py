@@ -77,20 +77,31 @@ def _register_blueprints(app):
 
 
 def _setup_logging(app):
-    """Configure structured logging."""
-    log_level = app.config.get('LOG_LEVEL', 'INFO')
+    """Configure structured logging and prevent reentrancy errors."""
+    log_level_name = app.config.get('LOG_LEVEL', 'INFO').upper()
+    log_level = getattr(logging, log_level_name, logging.INFO)
     log_file = app.config.get('LOG_FILE')
+    is_production = os.environ.get('FLASK_ENV') == 'production'
 
+    # Base formatter
     formatter = logging.Formatter(
         '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
     )
 
-    # Console handler
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(formatter)
-    app.logger.addHandler(stream_handler)
+    # 1. Console / Stream Logging
+    # In development, we want explicit console logging.
+    # In production, Gunicorn captures stdout/stderr, so adding a redundant 
+    # StreamHandler can cause "reentrant call" errors in Python 3.12.
+    if not is_production or app.config.get('DEBUG'):
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(formatter)
+        app.logger.addHandler(stream_handler)
+    else:
+        # In production/Gunicorn, ensure the root logger level is synced 
+        # so logs propagate to Gunicorn's captured stderr.
+        logging.getLogger().setLevel(log_level)
 
-    # File handler (if path is writable)
+    # 2. Dedicated File handler (if path is writable)
     if log_file:
         try:
             log_dir = os.path.dirname(log_file)
@@ -100,9 +111,9 @@ def _setup_logging(app):
             file_handler.setFormatter(formatter)
             app.logger.addHandler(file_handler)
         except (PermissionError, OSError):
-            app.logger.warning(f"Cannot write to log file {log_file}, using console only.")
+            app.logger.warning(f"Cannot write to log file {log_file}")
 
-    app.logger.setLevel(getattr(logging, log_level.upper(), logging.INFO))
+    app.logger.setLevel(log_level)
 
 
 def _ensure_admin(app):
