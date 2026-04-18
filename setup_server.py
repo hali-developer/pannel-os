@@ -84,7 +84,7 @@ def main():
     # ── Panel Directory Configuration ──
     print("\n[1.5/7] Setting panel directory...")
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    panel_dir = "/var/www/pannel"
+    panel_dir = "/var/www/panel"
 
     if os.path.abspath(current_dir) != os.path.abspath(panel_dir):
         print(f"  Copying panel files to {panel_dir}...")
@@ -107,9 +107,9 @@ def main():
     mysql_admin_user = "postgres"
     mysql_admin_pass = generate_secret(16)
     
-    pannel_db = "pannel_db"
-    pannel_user = "pannel_internal"
-    pannel_pass = generate_secret(16)
+    panel_db = "panel_db"
+    panel_user = "panel_internal"
+    panel_pass = generate_secret(16)
     
     web_admin_user = "admin"
     web_admin_pass = "admin"
@@ -117,11 +117,11 @@ def main():
     pg_cmds = [
         f"ALTER USER {mysql_admin_user} WITH PASSWORD '{mysql_admin_pass}';",
         # Terminate any existing connections to the database to safely drop it
-        f"SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = '{pannel_db}' AND pid <> pg_backend_pid();",
-        f"DROP DATABASE IF EXISTS {pannel_db};",
-        f"DROP USER IF EXISTS {pannel_user};",
-        f"CREATE USER {pannel_user} WITH ENCRYPTED PASSWORD '{pannel_pass}';",
-        f"CREATE DATABASE {pannel_db} OWNER {pannel_user} ENCODING 'utf8';"
+        f"SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = '{panel_db}' AND pid <> pg_backend_pid();",
+        f"DROP DATABASE IF EXISTS {panel_db};",
+        f"DROP USER IF EXISTS {panel_user};",
+        f"CREATE USER {panel_user} WITH ENCRYPTED PASSWORD '{panel_pass}';",
+        f"CREATE DATABASE {panel_db} OWNER {panel_user} ENCODING 'utf8';"
     ]
 
     setup_failed = False
@@ -165,7 +165,7 @@ LoadModule mod_tls.c /usr/lib/proftpd/mod_tls.so
     SQLDefaultGID 33
     SQLMinUserUID 30
 
-    SQLConnectInfo {pannel_db}@localhost {pannel_user} {pannel_pass}
+    SQLConnectInfo {panel_db}@localhost {panel_user} {panel_pass}
 
     SQLUserInfo ftp_accounts username password NULL NULL home_directory NULL
     SQLUserWhereClause "is_active=1"
@@ -210,9 +210,9 @@ SECRET_KEY={generate_secret()}
 JWT_SECRET_KEY={generate_secret()}
 
 PANEL_DB_HOST=localhost
-PANEL_DB_NAME={pannel_db}
-PANEL_DB_USER={pannel_user}
-PANEL_DB_PASSWORD={pannel_pass}
+PANEL_DB_NAME={panel_db}
+PANEL_DB_USER={panel_user}
+PANEL_DB_PASSWORD={panel_pass}
 
 POSTGRESQL_HOST=localhost
 POSTGRESQL_PORT=5432
@@ -223,7 +223,7 @@ DB_PASSWORD_ENCRYPTION_KEY={fernet_key}
 
 WEB_ROOT=/var/www
 LOG_LEVEL=INFO
-LOG_FILE=/var/log/pannel/panel.log
+LOG_FILE=/var/log/panel/panel.log
 PANEL_NAME=VPS Panel
 PANEL_VERSION=3.0.0
 
@@ -265,7 +265,7 @@ PANEL_ADMIN_PASSWORD={web_admin_pass}
 
     # ── Step 7: Final setup ──
     print("\n[7/7] Final cleanup & panel deployment...")
-    os.makedirs('/var/log/pannel', exist_ok=True)
+    os.makedirs('/var/log/panel', exist_ok=True)
 
     python_path = os.path.join(venv_path, 'bin', 'python')
     # Initialize database schema
@@ -273,15 +273,15 @@ PANEL_ADMIN_PASSWORD={web_admin_pass}
     if os.path.exists(schema_path):
         print("  Loading PostgreSQL schema...")
         # psql can run files directly via -f on the targeted database
-        run(["sudo", "-u", "postgres", "psql", "-d", pannel_db, "-f", schema_path], check=False)
+        run(["sudo", "-u", "postgres", "psql", "-d", panel_db, "-f", schema_path], check=False)
     else:
         # Fallback to python init
         run(["bash", "-c", f"cd {panel_dir} && {python_path} -c \"from app import create_app; create_app()\""])
 
-    # Grant privileges to the pannel user so it can modify tables created by the postgres system user
-    run(["sudo", "-u", "postgres", "psql", "-d", pannel_db, "-c", f"GRANT USAGE, CREATE ON SCHEMA public TO {pannel_user};"], check=False)
-    run(["sudo", "-u", "postgres", "psql", "-d", pannel_db, "-c", f"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {pannel_user};"], check=False)
-    run(["sudo", "-u", "postgres", "psql", "-d", pannel_db, "-c", f"GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {pannel_user};"], check=False)
+    # Grant privileges to the panel user so it can modify tables created by the postgres system user
+    run(["sudo", "-u", "postgres", "psql", "-d", panel_db, "-c", f"GRANT USAGE, CREATE ON SCHEMA public TO {panel_user};"], check=False)
+    run(["sudo", "-u", "postgres", "psql", "-d", panel_db, "-c", f"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {panel_user};"], check=False)
+    run(["sudo", "-u", "postgres", "psql", "-d", panel_db, "-c", f"GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {panel_user};"], check=False)
 
     # Ensure Web Admin user is created correctly
     admin_setup_script = f"""
@@ -325,7 +325,7 @@ except Exception as e:
     os.remove(script_path)
     
     # Ensure log directory is owned by www-data so the service can write to it
-    run(["chown", "-R", "www-data:www-data", "/var/log/pannel"], check=False)
+    run(["chown", "-R", "www-data:www-data", "/var/log/panel"], check=False)
     
     # Apache Setup
     run(["a2enmod", "proxy", "proxy_http", "headers", "rewrite", "ssl"], check=False)
@@ -353,11 +353,28 @@ except Exception as e:
 
    # Ensure Config for phppgadmin is available (if present)
     if os.path.exists('/etc/phppgadmin/apache.conf'):
+        # Patch Require local in the source file
         run(["sed", "-i", "s/Require local/Require all granted/g", "/etc/phppgadmin/apache.conf"], check=False)
-        run(["ln", "-sf", "/etc/phppgadmin/apache.conf", "/etc/apache2/conf-available/phppgadmin.conf"], check=False)
+        # Also patch the symlinked copy in conf-available if it exists separately
+        if os.path.exists('/etc/apache2/conf-available/phppgadmin.conf'):
+            run(["sed", "-i", "s/Require local/Require all granted/g", "/etc/apache2/conf-available/phppgadmin.conf"], check=False)
+        else:
+            # Write an explicit override conf that always allows access
+            phppgadmin_conf = """Alias /phppgadmin /usr/share/phppgadmin
+
+<Directory /usr/share/phppgadmin>
+    DirectoryIndex index.php
+    Options FollowSymLinks
+    AllowOverride None
+    Require all granted
+</Directory>
+"""
+            with open('/etc/apache2/conf-available/phppgadmin.conf', 'w') as f:
+                f.write(phppgadmin_conf)
         run(["a2enconf", "phppgadmin"], check=False)
 
     if os.path.exists('/etc/phppgadmin/config.inc.php'):
+        # Allow postgres superuser to login (extra_login_security blocks it by default)
         run(["sed", "-i", "s/$conf\\['extra_login_security'\\] = true;/$conf\\['extra_login_security'\\] = false;/g", "/etc/phppgadmin/config.inc.php"], check=False)
 
     # Restart apache to apply phpPgAdmin global configuration and clear out old disabled sites.
