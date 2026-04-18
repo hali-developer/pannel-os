@@ -1,0 +1,194 @@
+{% extends 'panel_layout.html' %}
+
+{% block title %}FTP & SSH Access — VPS Panel{% endblock %}
+{% block page_title %}FTP & SSH Access{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Left Column: Access Instructions (Details Tab) -->
+    <div class="col-lg-7">
+        <div class="panel-card mb-4 overflow-hidden" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div class="card-header bg-transparent border-bottom border-white-10 p-0">
+                <ul class="nav nav-tabs border-0" id="accessTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active border-0 py-3 px-4 fw-bold" id="ssh-tab" data-bs-toggle="tab" data-bs-target="#ssh" type="button" role="tab" style="color: inherit; background: transparent;">
+                            <i class="bi bi-terminal me-2"></i> SSH Terminal
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link border-0 py-3 px-4 fw-bold" id="ftp-tab" data-bs-toggle="tab" data-bs-target="#ftp" type="button" role="tab" style="color: inherit; background: transparent;">
+                            <i class="bi bi-folder2-open me-2"></i> FTPS Transfer
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body p-4 tab-content" id="accessTabsContent">
+                <!-- SSH Tab -->
+                <div class="tab-pane fade show active" id="ssh" role="tabpanel">
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="rounded bg-primary-soft p-3 me-3"><i class="bi bi-command h3 mb-0 text-primary"></i></div>
+                        <div>
+                            <h6 class="text-white mb-1">Terminal Shell Access</h6>
+                            <p class="small text-secondary mb-0">Direct access to your server via SSH.</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-dark rounded p-4 border border-secondary border-opacity-25 mb-4">
+                        <div class="small text-secondary text-uppercase mb-3 tracking-wider">Connection Command</div>
+                        <div class="d-flex justify-content-between align-items-center mb-0">
+                            <code class="text-info fw-bold h6 mb-0" id="sshCmd">ssh {{ session.get('username') }}@{{ base_url.replace('http://','').replace('https://','').split(':')[0] }}</code>
+                            <button class="btn btn-panel btn-ghost btn-sm-panel" onclick="copyValue('sshCmd')">
+                                <i class="bi bi-clipboard"></i> Copy
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <div class="p-3 rounded bg-dark-soft border border-white-5">
+                                <span class="small text-secondary d-block mb-1">Hostname / IP</span>
+                                <span class="text-white fw-bold">{{ base_url.replace('http://','').replace('https://','').split(':')[0] }}</span>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="p-3 rounded bg-dark-soft border border-white-5">
+                                <span class="small text-secondary d-block mb-1">Port</span>
+                                <span class="text-white fw-bold">22</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FTP Tab -->
+                <div class="tab-pane fade" id="ftp" role="tabpanel">
+                    <div class="d-flex align-items-center mb-4">
+                        <div class="rounded bg-amber-soft p-3 me-3"><i class="bi bi-folder-symlink h3 mb-0 text-amber"></i></div>
+                        <div>
+                            <h6 class="text-white mb-1">Secure FTP (FTPS)</h6>
+                            <p class="small text-secondary mb-0">Transfer files using FileZilla or WinSCP.</p>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-8">
+                            <div class="p-3 rounded bg-dark-soft border border-info-20 h-100">
+                                <span class="small text-secondary d-block mb-1">FTP HOST</span>
+                                <div class="d-flex justify-content-between">
+                                    <code class="text-white fw-bold h6 mb-0" id="ftpHost">{{ base_url.replace('http://','').replace('https://','').split(':')[0] }}</code>
+                                    <button class="btn btn-link btn-sm text-secondary p-0" onclick="copyValue('ftpHost')">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="p-3 rounded bg-dark-soft border border-white-5 h-100">
+                                <span class="small text-secondary d-block mb-1">PORT</span>
+                                <span class="text-white fw-bold">21</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning bg-warning-soft border-warning-20 text-warning px-4 small py-3">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Important:</strong> Set encryption to <strong>"Require explicit FTP over TLS"</strong> in your client settings.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help: Best Practices -->
+        <div class="panel-card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div class="card-body p-4 small text-secondary">
+                <h6 class="text-white mb-3"><i class="bi bi-lightbulb me-2 text-warning"></i> Access Tips</h6>
+                <ul class="mb-0 ps-3">
+                    <li class="mb-2">Your main login password works for both SSH and FTP.</li>
+                    <li class="mb-2">SSH access is chrooted to your home directory for security.</li>
+                    <li>Files uploaded via FTP should be placed inside the <code>public_html/</code> folder of your domain.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: FTP Accounts List -->
+    <div class="col-lg-5">
+        <div class="panel-card mb-4" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div class="card-header bg-transparent border-bottom border-white-10 py-3">
+                <h5 class="mb-0 text-white"><i class="bi bi-people me-2 text-info"></i> Active Accounts</h5>
+            </div>
+            <div class="card-body p-4">
+                {% if accounts %}
+                    {% for acct in accounts %}
+                    <div class="p-3 mb-3 rounded bg-dark-soft border border-white-5 d-flex justify-content-between align-items-center hov-border-info transition-all">
+                        <div class="overflow-hidden">
+                            <div class="fw-bold text-white mb-1"><i class="bi bi-person-circle text-info me-2"></i>{{ acct.username }}</div>
+                            <div class="small text-secondary text-truncate" title="{{ acct.home_directory }}">
+                                <i class="bi bi-folder2 me-1"></i> {{ acct.home_directory.split('/')[-2:] | join('/') }}
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-info border-info-20" 
+                                    data-bs-toggle="modal" data-bs-target="#ftpPwd_{{ loop.index }}" title="Change Password">
+                                <i class="bi bi-key"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Password Modal -->
+                    <div class="modal fade" id="ftpPwd_{{ loop.index }}" tabindex="-1">
+                        <div class="modal-dialog modal-sm">
+                            <div class="modal-content bg-dark border border-white-10">
+                                <form action="{{ url_for('ftp.client_change_ftp_password', username=acct.username) }}" method="POST">
+                                    <div class="modal-header border-white-10">
+                                        <h6 class="modal-title text-white">New password for {{ acct.username }}</h6>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <input type="password" class="form-control bg-dark text-white border-secondary" name="password" 
+                                               placeholder="Min 8 characters" required minlength="8">
+                                    </div>
+                                    <div class="modal-footer border-white-10">
+                                        <button type="submit" class="btn btn-panel btn-info-panel btn-sm-panel w-100">Update</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-secondary small">Your account is being provisioned. If FTP is missing, please contact support.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- System User Warning -->
+        <div class="alert bg-info-soft border-info-20 text-info small mb-0 px-4 py-3">
+             <i class="bi bi-info-circle-fill me-2 h5 mb-0 d-inline-block align-middle"></i>
+             Your system-level access is automatically synced with your panel username.
+        </div>
+    </div>
+</div>
+
+<style>
+    .nav-tabs .nav-link { border-radius: 0; position: relative; transition: all 0.3s; }
+    .nav-tabs .nav-link.active { border-bottom: 3px solid var(--accent-primary) !important; background: rgba(255,255,255,0.05) !important; }
+    .bg-primary-soft { background: rgba(13, 110, 253, 0.1); }
+    .bg-amber-soft { background: rgba(251, 191, 36, 0.1); }
+    .text-amber { color: #fbbf24; }
+    .border-info-20 { border-color: rgba(13, 202, 240, 0.2) !important; }
+    .bg-info-soft { background: rgba(13, 202, 240, 0.05); }
+    .hov-border-info:hover { border-color: rgba(13, 202, 240, 0.5) !important; }
+    .tracking-wider { letter-spacing: 0.1em; }
+</style>
+
+<script>
+function copyValue(id) {
+    const text = document.getElementById(id).innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        alert("Copied to clipboard!");
+    });
+}
+</script>
+{% endblock %}

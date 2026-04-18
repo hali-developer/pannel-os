@@ -80,9 +80,16 @@ def admin_revoke_ssl(domain_name):
     return redirect(url_for('domains.admin_domains_page'))
 
 
+@domains_bp.route('/client/domains', methods=['GET'])
+@client_required_web
+def client_domains_page():
+    """Client domain management page."""
+    domains = domain_svc.get_domains_for_user(session['user_id'])
+    return render_template('client/domains.html', domains=domains)
+
 
 # ════════════════════════════════════════
-# CLIENT WEB ROUTES
+# CLIENT ACTION ROUTES
 # ════════════════════════════════════════
 
 @domains_bp.route('/client/domains/add', methods=['POST'])
@@ -93,7 +100,7 @@ def client_add_domain():
     valid, error = validate_add_domain(request.form)
     if not valid:
         flash(error, 'danger')
-        return redirect(url_for('users.client_dashboard'))
+        return redirect(url_for('domains.client_domains_page'))
 
     domain_name = request.form.get('domain_name', '').strip().lower()
     ok, msg = domain_svc.add_domain(session['user_id'], domain_name)
@@ -109,7 +116,7 @@ def client_remove_domain(domain_name):
     domain = domain_svc.get_domain_by_name(domain_name)
     if not domain or domain.user_id != session['user_id']:
         flash('Domain not found or access denied.', 'danger')
-        return redirect(url_for('users.client_dashboard'))
+        return redirect(url_for('domains.client_domains_page'))
 
     ok, msg = domain_svc.remove_domain(domain_name)
     flash(msg, 'success' if ok else 'danger')
@@ -124,7 +131,7 @@ def client_install_ssl(domain_name):
     domain = domain_svc.get_domain_by_name(domain_name)
     if not domain or domain.user_id != session['user_id']:
         flash('Domain not found or access denied.', 'danger')
-        return redirect(url_for('users.client_dashboard'))
+        return redirect(url_for('domains.client_domains_page'))
 
     ok, msg = domain_svc.install_ssl(domain_name)
     flash(msg, 'success' if ok else 'danger')

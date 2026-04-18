@@ -124,7 +124,7 @@ def admin_activity_log():
 @users_bp.route('/dashboard')
 @client_required_web
 def client_dashboard():
-    """Client self-service dashboard."""
+    """Client self-service dashboard — Summary overview."""
     user = user_svc.get_user_by_id(session['user_id'])
     if not user:
         session.clear()
@@ -133,19 +133,37 @@ def client_dashboard():
     from app.models.domain import Domain
     from app.models.ftp_account import FTPAccount
     from app.models.database import ClientDatabase
-    from app.models.db_user import DbUser
 
-    domains = Domain.query.filter_by(user_id=user.id, is_active=True).all()
-    ftp_accounts = FTPAccount.query.filter_by(user_id=user.id, is_active=True).all()
-    databases = ClientDatabase.query.filter_by(user_id=user.id).all()
-    db_users = DbUser.query.filter_by(owner_user_id=user.id).all()
+    counts = {
+        'domains': Domain.query.filter_by(user_id=user.id, is_active=True).count(),
+        'ftp': FTPAccount.query.filter_by(user_id=user.id, is_active=True).count(),
+        'databases': ClientDatabase.query.filter_by(user_id=user.id).count(),
+    }
 
-    return render_template('client/dashboard.html',
-                           user=user,
-                           domains=domains,
-                           ftp_accounts=ftp_accounts,
-                           databases=databases,
-                           db_users=db_users)
+    return render_template('client/dashboard.html', user=user, counts=counts)
+
+
+@users_bp.route('/settings')
+@client_required_web
+def client_settings_page():
+    """Client account settings page."""
+    user = user_svc.get_user_by_id(session['user_id'])
+    return render_template('client/settings.html', user=user)
+
+
+@users_bp.route('/settings/password', methods=['POST'])
+@client_required_web
+@log_activity('client_change_password')
+def client_update_password():
+    """Client updates their own panel password."""
+    new_password = request.form.get('password', '')
+    if len(new_password) < 8:
+        flash('Password must be at least 8 characters.', 'danger')
+        return redirect(url_for('users.client_settings_page'))
+
+    ok, msg = user_svc.update_user(session['user_id'], password=new_password)
+    flash(msg, 'success' if ok else 'danger')
+    return redirect(url_for('users.client_settings_page'))
 
 
 # ════════════════════════════════════════

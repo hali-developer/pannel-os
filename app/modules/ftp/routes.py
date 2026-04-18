@@ -83,6 +83,38 @@ def admin_change_ftp_password(username):
     flash(msg, 'success' if ok else 'danger')
     return redirect(url_for('ftp.admin_ftp_page'))
 
+@ftp_bp.route('/client/ftp', methods=['GET'])
+@client_required_web
+def client_ftp_page():
+    """Client FTP/SSH management page."""
+    user_id = session['user_id']
+    accounts = ftp_svc.get_ftp_accounts_for_user(user_id)
+    from app.modules.domains.services import get_domains_for_user
+    domains = get_domains_for_user(user_id)
+    return render_template('client/ftp.html', accounts=accounts, domains=domains)
+
+
+@ftp_bp.route('/client/ftp/<string:username>/password', methods=['POST'])
+@client_required_web
+@log_activity('client_change_ftp_password')
+def client_change_ftp_password(username):
+    """Client changes their own FTP account password."""
+    # Verify ownership
+    account = ftp_svc.get_ftp_account_by_username(username)
+    if not account or account.user_id != session['user_id']:
+        flash('Account not found or access denied.', 'danger')
+        return redirect(url_for('ftp.client_ftp_page'))
+
+    valid, error = validate_change_password(request.form)
+    if not valid:
+        flash(error, 'danger')
+        return redirect(url_for('ftp.client_ftp_page'))
+
+    password = request.form.get('password', '')
+    ok, msg = ftp_svc.change_ftp_password(username, password)
+    flash(msg, 'success' if ok else 'danger')
+    return redirect(url_for('ftp.client_ftp_page'))
+
 
 # ════════════════════════════════════════
 # API ROUTES

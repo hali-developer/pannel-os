@@ -1,0 +1,239 @@
+{% extends 'panel_layout.html' %}
+
+{% block title %}My Databases — VPS Panel{% endblock %}
+{% block page_title %}PostgreSQL Databases{% endblock %}
+
+{% block content %}
+<!-- Top Stats Row -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="panel-card p-4 d-flex align-items-center bg-dark-soft border-0">
+            <div class="rounded-circle bg-primary-soft p-3 me-3"><i class="bi bi-database text-primary h4 mb-0"></i></div>
+            <div>
+                <div class="h3 fw-bold text-white mb-0">{{ databases | length }}</div>
+                <div class="small text-secondary fw-bold text-uppercase tracking-wider">Active Databases</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="panel-card p-4 d-flex align-items-center bg-dark-soft border-0">
+            <div class="rounded-circle bg-purple-soft p-3 me-3"><i class="bi bi-person-lock text-purple h4 mb-0"></i></div>
+            <div>
+                <div class="h3 fw-bold text-white mb-0">{{ db_users | length }}</div>
+                <div class="small text-secondary fw-bold text-uppercase tracking-wider">Database Users</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <a href="{{ phppgadmin_url }}" target="_blank" class="panel-card p-4 d-flex align-items-center justify-content-center bg-primary text-decoration-none hover-scale transition-all">
+            <i class="bi bi-box-arrow-up-right me-2 text-white h5 mb-0"></i>
+            <span class="h6 fw-bold text-white mb-0">Open phpPgAdmin</span>
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Left Column: Databases & Users -->
+    <div class="col-lg-7">
+        <!-- Databases Card -->
+        <div class="panel-card mb-4" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div class="card-header bg-transparent border-bottom border-white-10 py-3">
+                <h5 class="mb-0 text-white"><i class="bi bi-database me-2 text-primary"></i> My Databases</h5>
+            </div>
+            <div class="card-body p-4">
+                {% if databases %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="color: var(--text-default);">
+                            <thead class="small text-secondary">
+                                <tr>
+                                    <th>DATABASE</th>
+                                    <th>OWNER</th>
+                                    <th>HOST</th>
+                                    <th class="text-end">ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for db in databases %}
+                                <tr>
+                                    <td><code class="text-primary fw-bold">{{ db.db_name }}</code></td>
+                                    <td><span class="small text-secondary">{{ db.db_user }}</span></td>
+                                    <td><span class="small text-secondary">{{ db.db_host }}</span></td>
+                                    <td class="text-end">
+                                        <form action="{{ url_for('database.client_delete_database', db_name=db.db_name) }}" method="POST">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger border-danger-20"
+                                                    data-confirm="Drop database '{{ db.db_name }}'? This is permanent!">
+                                                <i class="bi bi-trash3"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-database opacity-25 h1 mb-3 text-secondary d-block"></i>
+                        <p class="text-secondary small">You haven't created any databases yet.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- DB Users Card -->
+        <div class="panel-card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div class="card-header bg-transparent border-bottom border-white-10 py-3">
+                <h5 class="mb-0 text-white"><i class="bi bi-people me-2 text-purple"></i> DB Users</h5>
+            </div>
+            <div class="card-body p-4">
+                {% if db_users %}
+                    {% for dbu in db_users %}
+                    <div class="p-3 mb-3 rounded bg-dark-soft border border-white-5 d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold text-white mb-1"><i class="bi bi-person-fill text-purple me-1"></i> {{ dbu.db_username }}</div>
+                            <div class="small text-secondary">
+                                {% set perms = dbu.permissions.all() %}
+                                {% if perms %}
+                                    <i class="bi bi-database-check me-1"></i> Access to: 
+                                    {% for p in perms %}
+                                    <span class="badge bg-primary-soft text-primary p-1 px-2 border border-primary-10">{{ p.database.db_name }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted italic">No databases assigned</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2">
+                             <button type="button" class="btn btn-sm btn-outline-info border-info-20"
+                                    data-bs-toggle="modal" data-bs-target="#dbupwd_{{ loop.index }}" title="Change Password">
+                                <i class="bi bi-key"></i>
+                            </button>
+                            <form action="{{ url_for('db_users.client_delete_db_user', db_username=dbu.db_username) }}" method="POST">
+                                <button type="submit" class="btn btn-sm btn-outline-danger border-danger-20"
+                                        data-confirm="Delete user '{{ dbu.db_username }}'?">
+                                    <i class="bi bi-trash3"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Password Modal -->
+                    <div class="modal fade" id="dbupwd_{{ loop.index }}" tabindex="-1">
+                        <div class="modal-dialog modal-sm">
+                            <div class="modal-content bg-dark border border-white-10">
+                                <form action="{{ url_for('db_users.client_update_db_user_password', db_username=dbu.db_username) }}" method="POST">
+                                    <div class="modal-header border-white-10">
+                                        <h6 class="modal-title text-white">New Password for {{ dbu.db_username }}</h6>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <input type="password" class="form-control bg-dark text-white border-secondary" name="password" 
+                                               placeholder="Min 8 chars" required minlength="8">
+                                    </div>
+                                    <div class="modal-footer border-white-10">
+                                        <button type="submit" class="btn btn-panel btn-success-panel btn-sm-panel w-100">Update</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-center text-secondary small py-4">No custom database users created.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Forms & Help -->
+    <div class="col-lg-5">
+        <!-- Help Card -->
+        <div class="panel-card mb-4" style="background: linear-gradient(135deg, rgba(13, 110, 253, 0.1), rgba(13, 202, 240, 0.05)); border: 1px solid rgba(13, 110, 253, 0.2);">
+            <div class="card-body p-4">
+                <h6 class="text-white mb-3"><i class="bi bi-lightning-charge me-2 text-primary"></i> Internal Connection</h6>
+                <p class="small text-secondary mb-3">
+                    Use these details inside your scripts (PHP, Python, etc.) running on this server.
+                </p>
+                <div class="bg-dark rounded p-3 mb-2 border border-secondary border-opacity-25">
+                    <div class="small text-secondary text-uppercase mb-1 tracking-wider">Database Host</div>
+                    <code class="text-primary fw-bold h6">localhost</code>
+                </div>
+                <div class="bg-dark rounded p-3 border border-secondary border-opacity-25">
+                    <div class="small text-secondary text-uppercase mb-1 tracking-wider">Default Port</div>
+                    <code class="text-primary fw-bold h6">5432</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create DB Form -->
+        <div class="panel-card mb-4" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div class="card-header bg-transparent border-bottom border-white-10 py-3">
+                <h5 class="mb-0 text-white"><i class="bi bi-plus-lg me-2 text-primary"></i> Create DB</h5>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ url_for('database.client_create_database') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary">DATABASE NAME</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-secondary small">{{ user.username }}_</span>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" name="db_name" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary">DB USERNAME</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-secondary small">{{ user.username }}_</span>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" name="db_user" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary">PASSWORD</label>
+                        <input type="password" class="form-control bg-dark text-white border-secondary" name="password" minlength="8" required>
+                    </div>
+                    <button type="submit" class="btn btn-panel btn-primary-panel w-100">Provision Database</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Grant Access Form -->
+        {% if db_users and databases %}
+        <div class="panel-card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div class="card-header bg-transparent border-bottom border-white-10 py-3">
+                <h5 class="mb-0 text-white"><i class="bi bi-shield-check me-2 text-success"></i> Grant Permissions</h5>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ url_for('db_users.client_grant_db_access') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary">SELECT USER</label>
+                        <select class="form-select bg-dark text-white border-secondary" name="db_username" required>
+                            {% for dbu in db_users %}
+                            <option value="{{ dbu.db_username }}">{{ dbu.db_username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary">SELECT DATABASE</label>
+                        <select class="form-select bg-dark text-white border-secondary" name="db_name" required>
+                            {% for db in databases %}
+                            <option value="{{ db.db_name }}">{{ db.db_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-panel btn-success-panel w-100">Grant Access</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .bg-dark-soft { background: rgba(0, 0, 0, 0.2); }
+    .bg-primary-soft { background: rgba(13, 110, 253, 0.1); }
+    .bg-purple-soft { background: rgba(168, 85, 247, 0.1); }
+    .text-purple { color: #a855f7; }
+    .border-white-5 { border-color: rgba(255, 255, 255, 0.05) !important; }
+    .border-white-10 { border-color: rgba(255, 255, 255, 0.1) !important; }
+    .border-primary-10 { border-color: rgba(13, 110, 253, 0.1) !important; }
+</style>
+{% endblock %}

@@ -1,367 +1,115 @@
 {% extends 'panel_layout.html' %}
 
 {% block title %}Dashboard — VPS Panel{% endblock %}
-{% block page_title %}Dashboard <span>/ {{ user.username }}</span>{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
-<!-- Welcome + Stats -->
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="stat-card green">
-            <div class="stat-icon"><i class="bi bi-globe2"></i></div>
-            <div class="stat-value">{{ domains | length }}</div>
-            <div class="stat-label">Active Domains</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card blue">
-            <div class="stat-icon"><i class="bi bi-database-fill"></i></div>
-            <div class="stat-value">{{ databases | length }}</div>
-            <div class="stat-label">PostgreSQL Databases</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card purple">
-            <div class="stat-icon"><i class="bi bi-person-lock"></i></div>
-            <div class="stat-value">{{ db_users | length }}</div>
-            <div class="stat-label">DB Users</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card amber">
-            <div class="stat-icon"><i class="bi bi-folder2-open"></i></div>
-            <div class="stat-value">{{ ftp_accounts | length }}</div>
-            <div class="stat-label">FTP Accounts</div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-3">
-    <!-- Left Column: Domains + Databases + DB Users -->
-    <div class="col-lg-7">
-        <!-- My Domains -->
-        <div class="panel-card mb-3">
-            <div class="card-header">
-                <h5><i class="bi bi-globe2"></i> My Domains</h5>
-            </div>
-            <div class="card-body">
-                {% if domains %}
-                    {% for domain in domains %}
-                    <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem 0;border-bottom:1px solid var(--border-default);">
-                        <div style="flex:1;min-width:0;">
-                            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-                                <a href="{{ 'https' if domain.ssl_enabled else 'http' }}://{{ domain.domain_name }}" target="_blank"
-                                   style="color:var(--accent-green);text-decoration:none;font-weight:600;font-size:0.88rem;white-space:nowrap;">
-                                    <i class="bi bi-globe"></i> {{ domain.domain_name }}
-                                </a>
-                                {% if domain.ssl_enabled %}
-                                <span style="display:inline-flex;align-items:center;gap:0.25rem;background:rgba(34,197,94,0.12);color:#22c55e;border:1px solid rgba(34,197,94,0.25);border-radius:20px;padding:0.1rem 0.55rem;font-size:0.68rem;font-weight:600;">
-                                    <i class="bi bi-lock-fill"></i> HTTPS
-                                </span>
-                                {% else %}
-                                <span style="display:inline-flex;align-items:center;gap:0.25rem;background:rgba(148,163,184,0.1);color:var(--text-dim);border:1px solid var(--border-default);border-radius:20px;padding:0.1rem 0.55rem;font-size:0.68rem;">
-                                    <i class="bi bi-unlock"></i> HTTP
-                                </span>
-                                {% endif %}
-                            </div>
-                            <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                                {{ domain.document_root }}
-                            </div>
-                        </div>
-                        <div style="display:flex;gap:0.35rem;margin-left:0.75rem;flex-shrink:0;">
-                            {% if not domain.ssl_enabled %}
-                            <form action="{{ url_for('domains.client_install_ssl', domain_name=domain.domain_name) }}" method="POST">
-                                <button type="submit" class="btn-panel btn-sm-panel"
-                                        style="background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;border:none;white-space:nowrap;"
-                                        data-confirm="Install free SSL for '{{ domain.domain_name }}'? Make sure DNS points to this server."
-                                        title="Install SSL">
-                                    <i class="bi bi-lock-fill"></i> SSL
-                                </button>
-                            </form>
-                            {% else %}
-                            <form action="{{ url_for('domains.client_revoke_ssl', domain_name=domain.domain_name) }}" method="POST">
-                                <button type="submit" class="btn-panel btn-sm-panel"
-                                        style="background:rgba(251,146,60,0.12);color:#fb923c;border:1px solid rgba(251,146,60,0.3);white-space:nowrap;"
-                                        data-confirm="Revoke SSL for '{{ domain.domain_name }}'? HTTPS will stop working."
-                                        title="Revoke SSL">
-                                    <i class="bi bi-unlock-fill"></i> Revoke
-                                </button>
-                            </form>
-                            {% endif %}
-                            <form action="{{ url_for('domains.client_remove_domain', domain_name=domain.domain_name) }}" method="POST">
-                                <button type="submit" class="btn-panel btn-danger-panel btn-sm-panel"
-                                        data-confirm="Remove domain '{{ domain.domain_name }}'?"
-                                        title="Remove domain">
-                                    <i class="bi bi-trash3"></i>
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state" style="padding:1.5rem;">
-                        <i class="bi bi-globe2"></i>
-                        <p>No domains yet. Add one below.</p>
-                    </div>
-                {% endif %}
-
-                <!-- Add Domain Form -->
-                <form action="{{ url_for('domains.client_add_domain') }}" method="POST" style="display:flex;gap:0.5rem;margin-top:1rem;">
-                    <input type="text" class="form-control" name="domain_name" placeholder="example.com" required style="flex:1;">
-                    <button type="submit" class="btn-panel btn-success-panel">
-                        <i class="bi bi-plus-lg"></i> Add
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- My Databases -->
-        <div class="panel-card mb-3">
-            <div class="card-header">
-                <h5><i class="bi bi-database-fill"></i> My Databases</h5>
-                <a href="{{ phppgadmin_url }}" target="_blank" class="btn-panel btn-ghost w-100">
-                    <i class="bi bi-database-gear"></i> Open phpPgAdmin
-                </a>
-            </div>
-            <div class="card-body">
-                {% if databases %}
-                    {% for db in databases %}
-                    <div style="background:rgba(0,0,0,0.2);padding:1rem;border-radius:var(--radius-sm);margin-bottom:0.75rem;border:1px solid var(--border-default);">
-                        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                            <div>
-                                <code style="color:var(--accent-green);font-size:0.88rem;font-weight:600;">{{ db.db_name }}</code>
-                                <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:0.3rem;">
-                                    <span><i class="bi bi-person-fill"></i> {{ db.db_user }}</span>
-                                    <span style="margin-left:0.75rem;"><i class="bi bi-hdd-network"></i> {{ db.db_host }}</span>
-                                </div>
-                                {% set granted = db.granted_users %}
-                                {% if granted %}
-                                <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem;">
-                                    <i class="bi bi-people-fill"></i> Also accessed by:
-                                    {% for gu in granted %}
-                                    <span style="background:var(--accent-purple-soft);color:var(--accent-purple);padding:0.05rem 0.35rem;border-radius:3px;">{{ gu }}</span>
-                                    {% endfor %}
-                                </div>
-                                {% endif %}
-                            </div>
-                            <form action="{{ url_for('database.client_delete_database', db_name=db.db_name) }}" method="POST">
-                                <button type="submit" class="btn-panel btn-danger-panel btn-sm-panel"
-                                        data-confirm="Drop database '{{ db.db_name }}'? This is permanent!">
-                                    <i class="bi bi-trash3"></i>
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state" style="padding:1.5rem;">
-                        <i class="bi bi-database"></i>
-                        <p>Access phpPgAdmin to manage PostgreSQL databases directly.</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- My DB Users -->
-        <div class="panel-card">
-            <div class="card-header">
-                <h5><i class="bi bi-person-lock"></i> My DB Users</h5>
-            </div>
-            <div class="card-body">
-                {% if db_users %}
-                    {% for dbu in db_users %}
-                    <div style="background:rgba(0,0,0,0.2);padding:1rem;border-radius:var(--radius-sm);margin-bottom:0.75rem;border:1px solid var(--border-default);">
-                        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-                            <div>
-                                <code style="color:var(--accent-purple);font-size:0.88rem;font-weight:600;">{{ dbu.db_username }}</code>
-                                <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.25rem;">
-                                    {% set granted_dbs = dbu.permissions.all() %}
-                                    {% if granted_dbs %}
-                                        <i class="bi bi-database"></i> Access:
-                                        {% for perm in granted_dbs %}
-                                        <span style="background:var(--accent-green-soft);color:var(--accent-green);padding:0.05rem 0.35rem;border-radius:3px;">
-                                            {{ perm.database.db_name if perm.database else '?' }}
-                                        </span>
-                                        {% endfor %}
-                                    {% else %}
-                                        <span style="color:var(--text-dim);">No databases assigned</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div style="display:flex;gap:0.35rem;">
-                                <button type="button" class="btn-panel btn-ghost btn-sm-panel"
-                                        data-bs-toggle="modal" data-bs-target="#clientDbuPwd_{{ loop.index }}" title="Change Password">
-                                    <i class="bi bi-key"></i>
-                                </button>
-                                <form action="{{ url_for('db_users.client_delete_db_user', db_username=dbu.db_username) }}" method="POST">
-                                    <button type="submit" class="btn-panel btn-danger-panel btn-sm-panel"
-                                            data-confirm="Delete DB user '{{ dbu.db_username }}'?">
-                                        <i class="bi bi-trash3"></i>
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Password Modal -->
-                    <div class="modal fade" id="clientDbuPwd_{{ loop.index }}" tabindex="-1">
-                        <div class="modal-dialog modal-sm">
-                            <div class="modal-content" style="background:var(--bg-card);border:1px solid var(--border-default);">
-                                <form action="{{ url_for('db_users.client_update_db_user_password', db_username=dbu.db_username) }}" method="POST">
-                                    <div class="modal-header" style="border-bottom:1px solid var(--border-default);">
-                                        <h6 class="modal-title">Change Password — {{ dbu.db_username }}</h6>
-                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <input type="password" class="form-control" name="password" placeholder="New password (min 8)" required minlength="8">
-                                    </div>
-                                    <div class="modal-footer" style="border-top:1px solid var(--border-default);">
-                                        <button type="submit" class="btn-panel btn-success-panel btn-sm-panel">
-                                            <i class="bi bi-check-lg"></i> Update
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state" style="padding:1.5rem;">
-                        <i class="bi bi-person-lock"></i>
-                        <p>No DB users. Create one on the right.</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <!-- Right Column: Create Forms + FTP Info -->
-    <div class="col-lg-5">
-        <!-- Create Database -->
-        <div class="panel-card mb-3">
-            <div class="card-header">
-                <h5><i class="bi bi-database-add"></i> Create Database</h5>
-            </div>
-            <div class="card-body">
-                <form action="{{ url_for('database.client_create_database') }}" method="POST" autocomplete="off">
-                    <div class="mb-3">
-                        <label class="form-label">Database Name</label>
-                        <div class="input-group">
-                            <span class="input-group-text" style="background:rgba(0,0,0,0.25);border:1px solid var(--border-default);color:var(--text-dim);font-size:0.8rem;">
-                                {{ user.username }}_
-                            </span>
-                            <input type="text" class="form-control" name="db_name" placeholder="mydb" required>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">DB Username</label>
-                        <div class="input-group">
-                            <span class="input-group-text" style="background:rgba(0,0,0,0.25);border:1px solid var(--border-default);color:var(--text-dim);font-size:0.8rem;">
-                                {{ user.username }}_
-                            </span>
-                            <input type="text" class="form-control" name="db_user" placeholder="user" required>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Password</label>
-                        <input type="password" class="form-control" name="password" placeholder="Min 8 characters" required minlength="8">
-                    </div>
-                    <button type="submit" class="btn-panel btn-success-panel w-100">
-                        <i class="bi bi-plus-lg"></i> Provision Database
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Create DB User -->
-        <div class="panel-card mb-3">
-            <div class="card-header">
-                <h5><i class="bi bi-person-plus-fill"></i> Create DB User</h5>
-            </div>
-            <div class="card-body">
-                <form action="{{ url_for('db_users.client_create_db_user') }}" method="POST" autocomplete="off">
-                    <div class="mb-3">
-                        <label class="form-label">PostgreSQL Username</label>
-                        <div class="input-group">
-                            <span class="input-group-text" style="background:rgba(0,0,0,0.25);border:1px solid var(--border-default);color:var(--text-dim);font-size:0.8rem;">
-                                {{ user.username }}_
-                            </span>
-                            <input type="text" class="form-control" name="db_username" placeholder="dbuser" required>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">PostgreSQL Password</label>
-                        <input type="password" class="form-control" name="password" placeholder="Min 8 characters" required minlength="8">
-                    </div>
-                    <button type="submit" class="btn-panel btn-success-panel w-100">
-                        <i class="bi bi-plus-lg"></i> Create DB User
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Grant DB Access -->
-        {% if db_users and databases %}
-        <div class="panel-card mb-3">
-            <div class="card-header">
-                <h5><i class="bi bi-shield-check"></i> Grant DB Access</h5>
-            </div>
-            <div class="card-body">
-                <form action="{{ url_for('db_users.client_grant_db_access') }}" method="POST">
-                    <div class="mb-3">
-                        <label class="form-label">DB User</label>
-                        <select class="form-select" name="db_username" required>
-                            <option value="">Select DB user...</option>
-                            {% for dbu in db_users %}
-                            <option value="{{ dbu.db_username }}">{{ dbu.db_username }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Database</label>
-                        <select class="form-select" name="db_name" required>
-                            <option value="">Select database...</option>
-                            {% for d in databases %}
-                            <option value="{{ d.db_name }}">{{ d.db_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <button type="submit" class="btn-panel btn-success-panel w-100">
-                        <i class="bi bi-shield-plus"></i> Grant Access
-                    </button>
-                </form>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- FTP Info -->
-        <div class="panel-card">
-            <div class="card-header">
-                <h5><i class="bi bi-folder2-open"></i> FTP Access</h5>
-            </div>
-            <div class="card-body">
-                {% if ftp_accounts %}
-                    {% for acct in ftp_accounts %}
-                    <div style="background:rgba(0,0,0,0.2);padding:0.85rem;border-radius:var(--radius-sm);margin-bottom:0.5rem;border:1px solid var(--border-default);">
-                        <div style="font-weight:600;font-size:0.85rem;"><i class="bi bi-person-badge" style="color:var(--accent-amber);"></i> {{ acct.username }}</div>
-                        <div style="font-size:0.75rem;color:var(--text-dim);margin-top:0.25rem;">
-                            <i class="bi bi-folder"></i> {{ acct.home_directory }}
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state" style="padding:1.5rem;">
-                        <i class="bi bi-folder2-open"></i>
-                        <p>No FTP accounts assigned. Contact your administrator.</p>
-                    </div>
-                {% endif %}
-
-                <div style="margin-top:1rem;padding:0.75rem;background:var(--accent-blue-soft);border-radius:var(--radius-sm);font-size:0.78rem;color:var(--accent-blue);">
-                    <i class="bi bi-info-circle"></i>
-                    Connect via FTPS on port 21. Use your FTP username and password.
+<!-- Welcome Header -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="panel-card p-5 overflow-hidden position-relative" style="background: linear-gradient(135deg, rgba(13, 110, 253, 0.15), rgba(168, 85, 247, 0.1)); border: 1px solid rgba(255,255,255,0.05);">
+            <!-- Decorative circle -->
+            <div style="position:absolute; top:-50px; right:-50px; width:200px; height:200px; background:rgba(13,110,253,0.1); border-radius:100px; filter:blur(40px);"></div>
+            
+            <div class="position-relative">
+                <h1 class="display-5 fw-bold text-white mb-2">Welcome back, {{ user.username }}!</h1>
+                <p class="lead text-secondary opacity-75">Your VPS is healthy and all services are running optimally.</p>
+                <div class="d-flex gap-3 mt-4">
+                    <a href="{{ url_for('domains.client_domains_page') }}" class="btn-panel btn-primary-panel px-4 py-2">
+                        <i class="bi bi-plus-lg me-1"></i> Add Domain
+                    </a>
+                    <a href="{{ url_for('ftp.client_ftp_page') }}" class="btn-panel btn-ghost px-4 py-2 border border-white-10">
+                        <i class="bi bi-terminal me-2"></i> Connection Info
+                    </a>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Stats / Resource Summary Grid -->
+<div class="row g-4">
+    <div class="col-md-4">
+        <a href="{{ url_for('domains.client_domains_page') }}" class="panel-card p-4 transition-all hover-scale d-block text-decoration-none border-0 h-100" style="background: rgba(34, 197, 94, 0.05);">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div class="rounded-circle bg-success-soft p-3"><i class="bi bi-globe2 text-success h4 mb-0"></i></div>
+                <i class="bi bi-chevron-right text-secondary opacity-25"></i>
+            </div>
+            <div class="h3 fw-bold text-white mb-1">{{ counts.domains }}</div>
+            <div class="text-secondary small fw-bold text-uppercase tracking-wider">Active Domains</div>
+            <div class="mt-3 text-success small fw-bold">Manage Web Hosting <i class="bi bi-arrow-right ms-1"></i></div>
+        </a>
+    </div>
+
+    <div class="col-md-4">
+        <a href="{{ url_for('database.client_databases_page') }}" class="panel-card p-4 transition-all hover-scale d-block text-decoration-none border-0 h-100" style="background: rgba(13, 110, 253, 0.05);">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div class="rounded-circle bg-primary-soft p-3"><i class="bi bi-database text-primary h4 mb-0"></i></div>
+                <i class="bi bi-chevron-right text-secondary opacity-25"></i>
+            </div>
+            <div class="h3 fw-bold text-white mb-1">{{ counts.databases }}</div>
+            <div class="text-secondary small fw-bold text-uppercase tracking-wider">SQL Databases</div>
+            <div class="mt-3 text-primary small fw-bold">Manage PostgreSQL <i class="bi bi-arrow-right ms-1"></i></div>
+        </a>
+    </div>
+
+    <div class="col-md-4">
+        <a href="{{ url_for('ftp.client_ftp_page') }}" class="panel-card p-4 transition-all hover-scale d-block text-decoration-none border-0 h-100" style="background: rgba(251, 146, 60, 0.05);">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div class="rounded-circle bg-amber-soft p-3"><i class="bi bi-folder2-open text-amber h4 mb-0"></i></div>
+                <i class="bi bi-chevron-right text-secondary opacity-25"></i>
+            </div>
+            <div class="h3 fw-bold text-white mb-1">{{ counts.ftp }}</div>
+            <div class="text-secondary small fw-bold text-uppercase tracking-wider">FTP Accounts</div>
+            <div class="mt-3 text-amber small fw-bold">File Access & SSH <i class="bi bi-arrow-right ms-1"></i></div>
+        </a>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-lg-8">
+        <div class="panel-card border-0" style="background: rgba(255,255,255,0.02);">
+            <div class="card-header bg-transparent border-white-10 py-3">
+                <h6 class="mb-0 text-white fw-bold"><i class="bi bi-activity me-2 text-info"></i> Recent System Activity</h6>
+            </div>
+            <div class="card-body">
+                <div class="text-center py-5">
+                    <p class="text-secondary small mb-0">No recent activities recorded for your account.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="panel-card border-0 h-100" style="background: linear-gradient(to bottom, rgba(255,255,255,0.03), transparent);">
+            <div class="card-body p-4">
+                <h6 class="text-white mb-3">Quick Configuration</h6>
+                <div class="list-group list-group-flush small bg-transparent">
+                    <div class="list-group-item bg-transparent border-white-10 px-0 py-3 text-secondary d-flex justify-content-between">
+                        <span>IP Address</span>
+                        <code class="text-white">{{ base_url.replace('http://','').replace('https://','').split(':')[0] }}</code>
+                    </div>
+                    <div class="list-group-item bg-transparent border-white-10 px-0 py-3 text-secondary d-flex justify-content-between">
+                        <span>Panel User</span>
+                        <span class="text-white">{{ user.username }}</span>
+                    </div>
+                    <div class="list-group-item bg-transparent border-0 px-0 py-3 text-secondary d-flex justify-content-between">
+                        <span>Role</span>
+                        <span class="badge bg-primary-soft text-primary">Standard Client</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-success-soft { background: rgba(34, 197, 94, 0.1); }
+    .bg-primary-soft { background: rgba(13, 110, 253, 0.1); }
+    .bg-amber-soft { background: rgba(251, 146, 60, 0.1); }
+    .text-amber { color: #f59e0b; }
+    .border-white-10 { border-color: rgba(255, 255, 255, 0.1) !important; }
+    .hover-scale:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.2) !important; }
+    .tracking-wider { letter-spacing: 0.05em; }
+</style>
+{% endblock %}
 {% endblock %}

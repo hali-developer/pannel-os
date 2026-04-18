@@ -1,0 +1,74 @@
+{% extends 'panel_layout.html' %}
+
+{% block title %}Account Settings — VPS Panel{% endblock %}
+{% block page_title %}Account Settings{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <!-- Security Card -->
+        <div class="panel-card shadow-sm border-0 mb-4" style="background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px);">
+            <div class="card-header bg-transparent border-bottom border-white-10 py-3">
+                <h5 class="mb-0"><i class="bi bi-shield-lock me-2 text-primary"></i> Login Security</h5>
+            </div>
+            <div class="card-body p-4">
+                <p class="text-secondary small mb-4">
+                    Update your panel login password. This will also update your primary system user password for SSH access.
+                </p>
+
+                <form action="{{ url_for('users.client_update_password') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label small text-uppercase tracking-wider">New Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-secondary">
+                                <i class="bi bi-key"></i>
+                            </span>
+                            <input type="password" class="form-control bg-dark text-white border-secondary" 
+                                   name="password" placeholder="Min 8 characters" required minlength="8">
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info bg-primary-soft border-0 text-primary small py-2 px-3 mb-4">
+                        <i class="bi bi-info-circle me-1"></i> 
+                        For better security, use a combination of letters, numbers, and special characters.
+                    </div>
+
+                    <div style="display:flex; justify-content: flex-end;">
+                        <button type="submit" class="btn-panel btn-primary-panel px-4">
+                            <i class="bi bi-check-lg me-1"></i> Update Password
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Profile Info -->
+        <div class="panel-card shadow-sm border-0" style="background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px);">
+            <div class="card-header bg-transparent border-bottom border-white-10 py-3">
+                <h5 class="mb-0"><i class="bi bi-person-circle me-2 text-info"></i> Profile Details</h5>
+            </div>
+            <div class="card-body p-4">
+                <div class="mb-3">
+                    <label class="form-label small text-secondary text-uppercase tracking-wider">Username</label>
+                    <div class="h6 text-white">{{ user.username }}</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small text-secondary text-uppercase tracking-wider">Account Role</label>
+                    <div><span class="badge bg-info-soft text-info px-2">{{ user.role | upper }}</span></div>
+                </div>
+                <div class="mb-0">
+                    <label class="form-label small text-secondary text-uppercase tracking-wider">Member Since</label>
+                    <div class="text-white small">{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else 'N/A' }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-primary-soft { background: rgba(13, 110, 253, 0.1); }
+    .bg-info-soft { background: rgba(13, 202, 240, 0.1); }
+    .border-white-10 { border-color: rgba(255, 255, 255, 0.1) !important; }
+    .tracking-wider { letter-spacing: 0.05em; }
+</style>
+{% endblock %}

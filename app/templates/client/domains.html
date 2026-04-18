@@ -1,0 +1,152 @@
+{% extends 'panel_layout.html' %}
+
+{% block title %}My Domains — VPS Panel{% endblock %}
+{% block page_title %}Domains{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Main Column: Domains List -->
+    <div class="col-lg-8">
+        <div class="panel-card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div class="card-header bg-transparent border-bottom border-white-10 py-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 text-white"><i class="bi bi-globe2 me-2 text-success"></i> Managed Domains</h5>
+                <span class="badge bg-success-soft text-success">{{ domains | length }} Active</span>
+            </div>
+            <div class="card-body p-0">
+                {% if domains %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" style="color: var(--text-default);">
+                            <thead class="bg-dark-soft small text-secondary">
+                                <tr>
+                                    <th class="ps-4">DOMAIN NAME</th>
+                                    <th>STATUS</th>
+                                    <th>DOCUMENT ROOT</th>
+                                    <th class="pe-4 text-end">ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for domain in domains %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <a href="{{ 'https' if domain.ssl_enabled else 'http' }}://{{ domain.domain_name }}" target="_blank"
+                                           class="text-decoration-none fw-bold text-success hover-opacity">
+                                            {{ domain.domain_name }} <i class="bi bi-box-arrow-up-right small ms-1"></i>
+                                        </a>
+                                    </td>
+                                    <td>
+                                        {% if domain.ssl_enabled %}
+                                        <span class="badge rounded-pill bg-success-soft text-success border border-success-20">
+                                            <i class="bi bi-shield-check me-1"></i> HTTPS
+                                        </span>
+                                        {% else %}
+                                        <span class="badge rounded-pill bg-warning-soft text-warning border border-warning-20">
+                                            <i class="bi bi-shield-slash me-1"></i> HTTP
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td><code class="small text-secondary">{{ domain.document_root }}</code></td>
+                                    <td class="pe-4 text-end">
+                                        <div class="d-flex justify-content-end gap-2">
+                                            {% if not domain.ssl_enabled %}
+                                            <form action="{{ url_for('domains.client_install_ssl', domain_name=domain.domain_name) }}" method="POST">
+                                                <button type="submit" class="btn btn-sm btn-outline-info border-info-20"
+                                                        data-confirm="Install SSL for '{{ domain.domain_name }}'?" title="Secure with Let's Encrypt">
+                                                    <i class="bi bi-lock-fill"></i> SSL
+                                                </button>
+                                            </form>
+                                            {% else %}
+                                            <form action="{{ url_for('domains.client_revoke_ssl', domain_name=domain.domain_name) }}" method="POST">
+                                                <button type="submit" class="btn btn-sm btn-outline-warning border-warning-20"
+                                                        data-confirm="Revoke SSL for '{{ domain.domain_name }}'?" title="Revoke SSL">
+                                                    <i class="bi bi-unlock-fill"></i> Revoke
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                            <form action="{{ url_for('domains.client_remove_domain', domain_name=domain.domain_name) }}" method="POST">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger border-danger-20"
+                                                        data-confirm="Remove domain '{{ domain.domain_name }}'?" title="Delete Domain">
+                                                    <i class="bi bi-trash3"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="p-5 text-center">
+                        <div class="mb-3 text-secondary" style="font-size: 3rem;"><i class="bi bi-globe2 opacity-25"></i></div>
+                        <h6 class="text-white-50">No domains added yet.</h6>
+                        <p class="small text-secondary mb-0">Use the form on the right to add your first domain.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar: Add Domain -->
+    <div class="col-lg-4">
+        <!-- Connection Info card -->
+        <div class="panel-card mb-4" style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(13, 110, 253, 0.05)); border: 1px solid rgba(34, 197, 94, 0.2);">
+            <div class="card-body p-4">
+                <h6 class="text-white mb-3"><i class="bi bi-info-circle me-2 text-success"></i> How to Connect</h6>
+                <p class="small text-secondary mb-3">
+                    Point your domain's <strong class="text-white">A record</strong> to your server's public IP address before adding it here.
+                </p>
+                <div class="bg-dark rounded p-3 mb-0 border border-secondary border-opacity-25">
+                    <div class="small text-secondary text-uppercase mb-1 tracking-wider">Server IP Address</div>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <code class="h6 text-success mb-0" id="serverIp">{{ base_url.replace('http://','').replace('https://','').split(':')[0] }}</code>
+                        <button class="btn btn-link btn-sm text-secondary p-0" onclick="copyValue('serverIp')">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Domain Form -->
+        <div class="panel-card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div class="card-header bg-transparent border-bottom border-white-10 py-3">
+                <h5 class="mb-0 text-white"><i class="bi bi-plus-lg me-2 text-success"></i> Add New Domain</h5>
+            </div>
+            <div class="card-body p-4">
+                <form action="{{ url_for('domains.client_add_domain') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label small text-secondary">DOMAIN NAME</label>
+                        <input type="text" class="form-control bg-dark text-white border-secondary" 
+                               name="domain_name" placeholder="example.com" required>
+                        <div class="form-text small text-secondary">Enter the domain without http:// or www.</div>
+                    </div>
+                    <button type="submit" class="btn btn-panel btn-success-panel w-100">
+                        <i class="bi bi-cloud-plus me-1"></i> Provision Domain
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-dark-soft { background: rgba(0, 0, 0, 0.2); }
+    .bg-success-soft { background: rgba(34, 197, 94, 0.1); }
+    .bg-warning-soft { background: rgba(251, 146, 60, 0.1); }
+    .border-success-20 { border-color: rgba(34, 197, 94, 0.2) !important; }
+    .border-warning-20 { border-color: rgba(251, 146, 60, 0.2) !important; }
+    .border-info-20 { border-color: rgba(13, 202, 240, 0.2) !important; }
+    .border-danger-20 { border-color: rgba(239, 68, 68, 0.2) !important; }
+    .tracking-wider { letter-spacing: 0.05em; }
+    .hover-opacity:hover { opacity: 0.8; }
+</style>
+
+<script>
+function copyValue(id) {
+    const text = document.getElementById(id).innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        alert("Copied to clipboard!");
+    });
+}
+</script>
+{% endblock %}

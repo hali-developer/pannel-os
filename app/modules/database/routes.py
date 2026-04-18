@@ -76,9 +76,24 @@ def admin_update_db_password(db_name):
     flash(msg, 'success' if ok else 'danger')
     return redirect(url_for('database.admin_databases_page'))
 
+@database_bp.route('/client/databases', methods=['GET'])
+@client_required_web
+def client_databases_page():
+    """Client database management page."""
+    user_id = session['user_id']
+    databases = db_svc.get_databases_for_user(user_id)
+    from app.models.db_user import DbUser
+    db_users = DbUser.query.filter_by(owner_user_id=user_id).all()
+    user = get_user_by_id(user_id)
+    
+    return render_template('client/databases.html', 
+                           databases=databases, 
+                           db_users=db_users,
+                           user=user)
+
 
 # ════════════════════════════════════════
-# CLIENT WEB ROUTES
+# CLIENT ACTION ROUTES
 # ════════════════════════════════════════
 
 @database_bp.route('/client/databases/create', methods=['POST'])
@@ -121,7 +136,7 @@ def client_delete_database(db_name):
     record = db_svc.get_database_by_name(db_name)
     if not record or record.user_id != session['user_id']:
         flash('Database not found or access denied.', 'danger')
-        return redirect(url_for('users.client_dashboard'))
+        return redirect(url_for('database.client_databases_page'))
 
     ok, msg = db_svc.delete_database(db_name)
     flash(msg, 'success' if ok else 'danger')
