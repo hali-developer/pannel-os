@@ -2,7 +2,7 @@ import sys
 import os
 
 # Add the app directory to sys.path to import models
-sys.path.insert(0, '/var/www/pannel')
+sys.path.insert(0, '/var/www/panel')
 
 from app import create_app
 from app.extensions import db

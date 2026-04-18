@@ -24,9 +24,9 @@ class BaseConfig:
     # Panel Database (Using PostgreSQL for all data)
     PANEL_DB_HOST = os.environ.get('PANEL_DB_HOST', 'localhost')
     PANEL_DB_PORT = int(os.environ.get('PANEL_DB_PORT', 5432))
-    PANEL_DB_USER = os.environ.get('PANEL_DB_USER', 'pannel_user')
-    PANEL_DB_PASSWORD = os.environ.get('PANEL_DB_PASSWORD', 'StrongPanelPass123!')
-    PANEL_DB_NAME = os.environ.get('PANEL_DB_NAME', 'pannel_db')
+    PANEL_DB_USER = os.environ.get('PANEL_DB_USER', 'panel_internal')
+    PANEL_DB_PASSWORD = os.environ.get('PANEL_DB_PASSWORD', 'KmhntqMUDZda9Q9P')
+    PANEL_DB_NAME = os.environ.get('PANEL_DB_NAME', 'panel_db')
 
     # Construct PostgreSQL URI
     SQLALCHEMY_DATABASE_URI = f"postgresql://{PANEL_DB_USER}:{PANEL_DB_PASSWORD}@{PANEL_DB_HOST}:{PANEL_DB_PORT}/{PANEL_DB_NAME}"
@@ -59,7 +59,7 @@ class BaseConfig:
 
     # Logging
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
-    LOG_FILE = os.environ.get('LOG_FILE', None)
+    LOG_FILE = os.environ.get('LOG_FILE', '/var/log/panel/panel.log')
 
     # Panel Metadata
     PANEL_NAME = os.environ.get('PANEL_NAME', 'VPS Panel')
