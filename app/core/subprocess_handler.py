@@ -31,6 +31,7 @@ ALLOWED_COMMANDS = {
     'touch',            # for creating files
     'id',               # for checking user existence
     'ls',               # for checking file existence
+    'manage_ssh_user.sh', # for SSH user management
 }
 
 # Commands that require sudo

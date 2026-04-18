@@ -457,6 +457,7 @@ www-data ALL=(ALL) NOPASSWD: \\
     /usr/local/bin/add_domain.sh, \\
     /usr/local/bin/remove_domain.sh, \\
     /usr/local/bin/add_ssl.sh, \\
+    /usr/local/bin/manage_ssh_user.sh, \\
     /usr/bin/certbot
 """
     with open('/etc/sudoers.d/vps-panel', 'w') as f:
@@ -671,6 +672,43 @@ exit 0
 """)
     run(["chmod", "+x", "/usr/local/bin/add_ssl.sh"], check=False)
 
+    with open('/usr/local/bin/manage_ssh_user.sh', 'w') as f:
+        f.write("""#!/bin/bash
+# VPS Panel — Manage SSH Users Script
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+ACTION=$1
+USER=$2
+PARAM=$3
+
+if [ -z "$ACTION" ] || [ -z "$USER" ]; then
+    echo "Usage: $0 [create|delete|passwd] [username] [password|home_dir]"
+    exit 1
+fi
+
+case $ACTION in
+    create)
+        # PARAM is home_dir
+        /usr/sbin/useradd -m -d "$PARAM" -U -s /bin/bash "$USER"
+        exit $?
+        ;;
+    delete)
+        /usr/sbin/userdel "$USER"
+        exit $?
+        ;;
+    passwd)
+        # PARAM is password
+        echo "$USER:$PARAM" | /usr/sbin/chpasswd
+        exit $?
+        ;;
+    *)
+        echo "Invalid action: $ACTION"
+        exit 1
+        ;;
+esac
+""")
+    run(["chmod", "+x", "/usr/local/bin/manage_ssh_user.sh"], check=False)
+
     # Create systemd service for Gunicorn after all shell scripts are written
     gunicorn_path = os.path.join(venv_path, 'bin', 'gunicorn')
     systemd_service = f"""[Unit]
@@ -683,7 +721,7 @@ User=www-data
 Group=www-data
 WorkingDirectory={panel_dir}
 EnvironmentFile={panel_dir}/.env
-Environment="PATH={venv_path}/bin"
+Environment="PATH={venv_path}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 Environment="FLASK_ENV=production"
 ExecStart={gunicorn_path} --workers 3 --bind 0.0.0.0:8800 --timeout 120 run:app
 Restart=always
