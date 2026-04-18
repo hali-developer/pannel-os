@@ -84,7 +84,7 @@ def main():
     # ── Panel Directory Configuration ──
     print("\n[1.5/7] Setting panel directory...")
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    panel_dir = "/var/www/panel"
+    panel_dir = "/var/www/pannel"
 
     if os.path.abspath(current_dir) != os.path.abspath(panel_dir):
         print(f"  Copying panel files to {panel_dir}...")
@@ -622,7 +622,9 @@ Type=simple
 User=www-data
 Group=www-data
 WorkingDirectory={panel_dir}
+EnvironmentFile={panel_dir}/.env
 Environment="PATH={venv_path}/bin"
+Environment="FLASK_ENV=production"
 ExecStart={gunicorn_path} --workers 3 --bind 0.0.0.0:8000 --timeout 120 run:app
 Restart=always
 RestartSec=5

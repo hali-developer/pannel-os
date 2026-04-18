@@ -75,8 +75,9 @@ class DevelopmentConfig(BaseConfig):
 class ProductionConfig(BaseConfig):
     """Production configuration."""
     DEBUG = False
-    JWT_COOKIE_SECURE = True   # HTTPS enforced in production
-    SESSION_COOKIE_SECURE = True
+    # Panel is served over plain HTTP on port 8000 — cookies must NOT require HTTPS
+    JWT_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = False
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
 
