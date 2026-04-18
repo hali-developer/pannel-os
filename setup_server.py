@@ -84,8 +84,21 @@ def main():
     # ── Panel Directory Configuration ──
     print("\n[1.5/7] Setting panel directory...")
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    panel_dir = current_dir
-    print(f"  ✅ Running Panel directly from: {panel_dir}")
+    panel_dir = "/var/www/panel"
+
+    if os.path.abspath(current_dir) != os.path.abspath(panel_dir):
+        print(f"  Copying panel files to {panel_dir}...")
+        os.makedirs(panel_dir, exist_ok=True)
+        shutil.copytree(
+            current_dir, 
+            panel_dir, 
+            dirs_exist_ok=True, 
+            ignore=shutil.ignore_patterns('venv', '__pycache__', '.git', '.env')
+        )
+        run(["chown", "-R", "www-data:www-data", panel_dir], check=False)
+        print(f"  ✅ Panel installed to: {panel_dir}")
+    else:
+        print(f"  ✅ Running Panel directly from: {panel_dir}")
 
     # ── Step 2: PostgreSQL Setup (Panel & Admin) ──
     print("\n[2/7] Configuring PostgreSQL...")
@@ -586,9 +599,17 @@ WantedBy=multi-user.target
     with open('/etc/systemd/system/vps-panel.service', 'w') as f:
         f.write(systemd_service)
     
+    run(["systemctl", "daemon-reexec"], check=False)
     run(["systemctl", "daemon-reload"], check=False)
     run(["systemctl", "enable", "vps-panel"], check=False)
     run(["systemctl", "start", "vps-panel"], check=False)
+    run(["systemctl", "restart", "vps-panel"], check=False)
+    run(["systemctl", "status", "vps-panel", "--no-pager"], check=False)
+
+    if os.path.abspath(current_dir) != os.path.abspath(panel_dir):
+        print(f"  Cleaning up original setup directory: {current_dir}")
+        shutil.rmtree(current_dir, ignore_errors=True)
+
     print("  ✅ VPS Panel v3.0 setup complete!")
     print("=" * 60)
     print(f"""
