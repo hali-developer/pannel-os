@@ -11,6 +11,7 @@ Wraps all system command execution with:
 import subprocess
 import platform
 import logging
+import os
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,8 @@ ALLOWED_COMMANDS = {
     'tar', 'gzip',      # future: backups
     'tee',              # for writing files via sudo
     'touch',            # for creating files
+    'id',               # for checking user existence
+    'ls',               # for checking file existence
 }
 
 # Commands that require sudo
@@ -78,7 +81,8 @@ def safe_run(
         base_cmd = cmd[1]
 
     # ── Whitelist Check ──
-    if base_cmd not in ALLOWED_COMMANDS:
+    # Check only the basename so both 'useradd' and '/usr/sbin/useradd' match
+    if os.path.basename(base_cmd) not in ALLOWED_COMMANDS:
         msg = f"Command '{base_cmd}' is not in the allowed commands whitelist."
         logger.error(f"BLOCKED: {msg}")
         return False, msg
