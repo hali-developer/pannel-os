@@ -39,7 +39,12 @@ def create_ftp_account(user_id: int, username: str, password: str, domain_id: in
     home_dir = domain.document_root
     hashed = crypt.crypt(password, crypt.mksalt(crypt.METHOD_SHA512))
 
-    # Record in DB
+    # 1. First, create the actual Linux OS user for SSH
+    ok, msg = FTPSystemService.create_system_user(username, password, home_dir)
+    if not ok:
+        return False, f"System user error: {msg}"
+
+    # 2. Record in DB for the panel and ProFTPD fallback
     account = FTPAccount(
         user_id=user_id,
         username=username,
@@ -51,10 +56,11 @@ def create_ftp_account(user_id: int, username: str, password: str, domain_id: in
     try:
         db.session.add(account)
         db.session.commit()
-        logger.info(f"FTP account created: {username} for domain {domain.domain_name}")
-        return True, f"FTP account '{username}' created."
+        logger.info(f"FTP/SSH account created: {username} for domain {domain.domain_name}")
+        return True, f"FTP/SSH account '{username}' created successfully."
     except Exception as e:
         db.session.rollback()
+        FTPSystemService.delete_system_user(username) # Cleanup partially created user
         return False, f"Database error: {str(e)}"
 
 
@@ -64,12 +70,17 @@ def delete_ftp_account(username: str) -> tuple[bool, str]:
     if not account:
         return False, f"FTP account '{username}' not found."
 
+    # Remove from OS
+    ok, msg = FTPSystemService.delete_system_user(username)
+    if not ok:
+        logger.warning(f"Failed to delete system user '{username}': {msg}")
+
     # Remove from DB
     try:
         db.session.delete(account)
         db.session.commit()
-        logger.info(f"FTP account deleted: {username}")
-        return True, f"FTP account '{username}' deleted."
+        logger.info(f"FTP/SSH account deleted: {username}")
+        return True, f"Account '{username}' deleted."
     except Exception as e:
         db.session.rollback()
         return False, f"Database error: {str(e)}"
@@ -81,11 +92,17 @@ def change_ftp_password(username: str, new_password: str) -> tuple[bool, str]:
     if not account:
         return False, f"FTP account '{username}' not found."
 
+    # Sync password to OS
+    ok, msg = FTPSystemService.change_system_password(username, new_password)
+    if not ok:
+        return False, f"OS password update error: {msg}"
+
+    # Sync password to DB
     hashed = crypt.crypt(new_password, crypt.mksalt(crypt.METHOD_SHA512))
     account.password = hashed
     try:
         db.session.commit()
-        logger.info(f"FTP password changed: {username}")
+        logger.info(f"FTP/SSH password changed: {username}")
         return True, "Password updated."
     except Exception as e:
         db.session.rollback()

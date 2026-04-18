@@ -31,8 +31,61 @@ class FTPSystemService:
         """Get the home directory path for a user."""
         return os.path.join(cls._get_web_root(), username)
 
+    @classmethod
+    def create_system_user(cls, username: str, password: str, home_dir: str) -> tuple[bool, str]:
+        """Create an actual Linux system user for SSH/Terminal access."""
+        # Check if user already exists in Linux
+        ok, _ = safe_run(['id', username])
+        if ok:
+            return False, f"System user '{username}' already exists."
 
-   
+        # Create user with their own private group (-U) for better isolation.
+        # We don't put them in the www-data group directly because then they could see each other's files.
+        ok, msg = safe_run(['sudo', '/usr/sbin/useradd', '-m', '-d', home_dir, '-U', '-s', '/bin/bash', username])
+        if not ok:
+            return False, f"Failed to create system user: {msg}"
+
+        # Set the password using chpasswd
+        import subprocess
+        try:
+            proc = subprocess.Popen(['sudo', '/usr/sbin/chpasswd'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = proc.communicate(input=f"{username}:{password}".encode())
+            if proc.returncode != 0:
+                # Cleanup user since password failed
+                cls.delete_system_user(username)
+                return False, f"Failed to set user password: {stderr.decode()}"
+        except Exception as e:
+            cls.delete_system_user(username)
+            return False, f"Failed to set user password: {str(e)}"
+
+        logger.info(f"System user {username} provisioned for SSH access.")
+        return True, "System user created."
+
+    @classmethod
+    def change_system_password(cls, username: str, new_password: str) -> tuple[bool, str]:
+        """Change the password for an existing Linux system user."""
+        import subprocess
+        try:
+            proc = subprocess.Popen(['sudo', '/usr/sbin/chpasswd'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = proc.communicate(input=f"{username}:{new_password}".encode())
+            if proc.returncode != 0:
+                return False, f"Failed to update OS password: {stderr.decode()}"
+        except Exception as e:
+            return False, f"Failed to update OS password: {str(e)}"
+
+        return True, "OS password updated."
+
+    @classmethod
+    def delete_system_user(cls, username: str) -> tuple[bool, str]:
+        """Delete a Linux system user but KEEP the home directory."""
+        # Using userdel (without -r) preserves the files, relying on domain deletion to clean up files
+        ok, msg = safe_run(['sudo', '/usr/sbin/userdel', username])
+        if not ok:
+            # Code 6 means user doesn't exist, which is fine
+            if "does not exist" in msg:
+                return True, "User already removed."
+            return False, f"Failed to delete system user: {msg}"
+        return True, "System user deleted."
     @classmethod
     def setup_directories(cls, home_dir: str, username: str) -> tuple[bool, str]:
         """
@@ -95,8 +148,8 @@ class FTPSystemService:
         except Exception:
             pass
 
-        # Set ownership: user owns everything inside
-        ok, msg = safe_run(['sudo', '/bin/chown', '-R', f'{username}:{username}', home_dir])
+        # Set ownership: user owns everything, group is www-data so Apache can read
+        ok, msg = safe_run(['sudo', '/bin/chown', '-R', f'{username}:www-data', home_dir])
         if not ok:
             return False, f"Failed to set ownership: {msg}"
 
