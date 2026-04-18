@@ -5,7 +5,7 @@ Web and API routes for FTP account management.
 """
 import logging
 from flask import Blueprint, request, render_template, redirect, url_for, session, flash, jsonify
-from app.core.decorators import admin_required_web, login_required_api, admin_required_api, log_activity
+from app.core.decorators import admin_required_web, client_required_web, login_required_api, admin_required_api, log_activity
 from app.modules.ftp.schemas import validate_create_ftp, validate_change_password
 from app.modules.ftp import services as ftp_svc
 from app.modules.users.services import list_users
