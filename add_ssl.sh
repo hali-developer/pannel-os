@@ -5,6 +5,7 @@ export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 DOMAIN=$1
 BASE_PATH="/var/www"
 WEBROOT="$BASE_PATH/$DOMAIN/public_html"
+LE_WEBROOT="/var/www/letsencrypt"
 APACHE_CONF="/etc/apache2/sites-available/$DOMAIN.conf"
 APACHE_SSL_CONF="/etc/apache2/sites-available/${DOMAIN}-ssl.conf"
 
@@ -19,12 +20,12 @@ if [ ! -d "$WEBROOT" ]; then
 fi
 
 echo "Requesting SSL Certificate for $DOMAIN and www.$DOMAIN using webroot..."
-certbot certonly --webroot -w "$WEBROOT" -d "$DOMAIN" -d "www.$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
+certbot certonly --webroot -w "$LE_WEBROOT" -d "$DOMAIN" -d "www.$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
 
 # Fallback to root domain only if www fails (e.g. DNS not pointing)
 if [ $? -ne 0 ]; then
   echo "Failed for www-subdomain. Trying just $DOMAIN..."
-  certbot certonly --webroot -w "$WEBROOT" -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
+  certbot certonly --webroot -w "$LE_WEBROOT" -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
   if [ $? -ne 0 ]; then
     echo "SSL Certificate acquisition completely failed!"
     exit 1

@@ -289,6 +289,21 @@ PANEL_ADMIN_PASSWORD={web_admin_pass}
         run(["cp", ssl_params_src, "/etc/apache2/conf-available/ssl-params.conf"])
         run(["a2enconf", "ssl-params"], check=False)
 
+    # Set up global Let's Encrypt webroot alias to solve 404s behind proxies
+    letsencrypt_conf = """Alias /.well-known/acme-challenge/ /var/www/letsencrypt/.well-known/acme-challenge/
+<Directory /var/www/letsencrypt/>
+    AllowOverride None
+    Options MultiViews Indexes SymLinksIfOwnerMatch IncludesNoExec
+    Require method GET POST OPTIONS
+    Require all granted
+</Directory>
+"""
+    os.makedirs('/var/www/letsencrypt/.well-known/acme-challenge', exist_ok=True)
+    run(["chown", "-R", "www-data:www-data", "/var/www/letsencrypt"], check=False)
+    with open('/etc/apache2/conf-available/letsencrypt.conf', 'w') as f:
+        f.write(letsencrypt_conf)
+    run(["a2enconf", "letsencrypt"], check=False)
+
    # Ensure Config for phppgadmin is available (if present)
     if os.path.exists('/etc/phppgadmin/apache.conf'):
         run(["sed", "-i", "s/Require local/Require all granted/g", "/etc/phppgadmin/apache.conf"], check=False)
@@ -492,6 +507,7 @@ export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 DOMAIN=$1
 BASE_PATH="/var/www"
 WEBROOT="$BASE_PATH/$DOMAIN/public_html"
+LE_WEBROOT="/var/www/letsencrypt"
 APACHE_CONF="/etc/apache2/sites-available/$DOMAIN.conf"
 APACHE_SSL_CONF="/etc/apache2/sites-available/${DOMAIN}-ssl.conf"
 
@@ -506,12 +522,12 @@ if [ ! -d "$WEBROOT" ]; then
 fi
 
 echo "Requesting SSL Certificate for $DOMAIN and www.$DOMAIN using webroot..."
-certbot certonly --webroot -w "$WEBROOT" -d "$DOMAIN" -d "www.$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
+certbot certonly --webroot -w "$LE_WEBROOT" -d "$DOMAIN" -d "www.$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
 
 # Fallback to root domain only if www fails (e.g. DNS not pointing)
 if [ $? -ne 0 ]; then
   echo "Failed for www-subdomain. Trying just $DOMAIN..."
-  certbot certonly --webroot -w "$WEBROOT" -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
+  certbot certonly --webroot -w "$LE_WEBROOT" -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
   if [ $? -ne 0 ]; then
     echo "SSL Certificate acquisition completely failed!"
     exit 1
