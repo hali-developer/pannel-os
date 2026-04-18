@@ -176,6 +176,37 @@ class FTPSystemService:
 
 
     @classmethod
+    def provision_ftp_user(cls, username: str, password: str, home_dir: str) -> tuple[bool, str]:
+        """
+        Orchestrate full system setup for a new panel user:
+          1. Create Linux system user (for SSH/Terminal)
+          2. Setup directory structure (public_html, logs, tmp)
+          3. Generate vsftpd config
+        """
+        # 1. Create system user
+        ok, msg = cls.create_system_user(username, password, home_dir)
+        if not ok:
+            return False, f"Failed to create system user: {msg}"
+
+        # 2. Setup directories & permissions
+        ok, msg = cls.setup_directories(home_dir, username)
+        if not ok:
+            # We don't rollback user creation to allow manual debug, but we report error
+            return False, f"Failed to setup directories: {msg}"
+
+        # 3. Create vsftpd config
+        ok, msg = cls.create_vsftpd_config(username, home_dir)
+        if not ok:
+            return False, f"Failed to create vsftpd config: {msg}"
+
+        return True, "Full system provisioning complete."
+
+    @classmethod
+    def set_password(cls, username: str, password: str) -> tuple[bool, str]:
+        """Sync a password to an existing Linux system user."""
+        return cls.change_system_password(username, password)
+
+    @classmethod
     def deprovision_ftp_user(cls, username: str) -> tuple[bool, str]:
         """Full cleanup: remove vsftpd config + delete system user."""
         errors = []

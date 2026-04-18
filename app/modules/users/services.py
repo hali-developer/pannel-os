@@ -48,15 +48,16 @@ def create_user(username: str, password: str, role: str = 'client', email: str =
         logger.error(f"Failed to create user {username}: {e}")
         return False, f"Database error: {str(e)}", None
 
-    # For client users, provision system user + FTP
+    # Automatically provision system resources for new client users
     if role == 'client':
         from app.services.ftp_service import FTPSystemService
         ok, msg = FTPSystemService.provision_ftp_user(username, password, home_dir)
         if not ok:
-            logger.warning(f"System user provisioning warning for {username}: {msg}")
-            # Don't fail the panel user creation — system user can be retried
+            logger.warning(f"System user provisioning failure for {username}: {msg}")
+            # We don't fail the whole web account creation, but we log the error 
+            # so it can be fixed manually or retried later.
 
-    logger.info(f"User created: {username} (role={role})")
+    logger.info(f"User created with auto-provisioning: {username} (role={role})")
     return True, f"User '{username}' created successfully.", user
 
 
