@@ -174,30 +174,62 @@ class PostgreSQLService:
     @classmethod
     def grant_privileges(cls, db_name: str, username: str, host: str = 'localhost') -> tuple[bool, str]:
         """Grant ALL privileges on a specific database to a user."""
+        # First grant at database level (connection to postgres db for CREATE DATABASE scope)
         conn = cls._get_admin_connection()
         try:
             with conn.cursor() as cursor:
-                # Grant on database
                 cursor.execute(
                     sql.SQL("GRANT ALL PRIVILEGES ON DATABASE {} TO {};").format(
                         sql.Identifier(db_name),
                         sql.Identifier(username)
                     )
                 )
-                # Alter owner for simpler isolation in postgres
+                # Set owner so the user has full control
                 cursor.execute(
                     sql.SQL("ALTER DATABASE {} OWNER TO {};").format(
                         sql.Identifier(db_name),
                         sql.Identifier(username)
                     )
                 )
-            logger.info(f"Granted privileges on {db_name} to {username}")
-            return True, f"Privileges granted on '{db_name}' to '{username}'."
+            logger.info(f"Granted database-level privileges on {db_name} to {username}")
         except psycopg2.Error as e:
-            logger.error(f"Failed to grant privileges: {e}")
+            logger.error(f"Failed to grant database privileges: {e}")
             return False, str(e)
         finally:
             conn.close()
+
+        # Connect to the actual database to grant schema-level access (required on PostgreSQL 15+)
+        conn2 = cls._get_admin_connection(database=db_name)
+        try:
+            with conn2.cursor() as cursor:
+                cursor.execute(
+                    sql.SQL("GRANT USAGE, CREATE ON SCHEMA public TO {};").format(
+                        sql.Identifier(username)
+                    )
+                )
+                cursor.execute(
+                    sql.SQL("GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {};").format(
+                        sql.Identifier(username)
+                    )
+                )
+                cursor.execute(
+                    sql.SQL("GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {};").format(
+                        sql.Identifier(username)
+                    )
+                )
+                # Ensure future tables are also automatically granted
+                cursor.execute(
+                    sql.SQL("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO {};").format(
+                        sql.Identifier(username)
+                    )
+                )
+            logger.info(f"Granted schema-level privileges on {db_name} to {username}")
+            return True, f"Privileges granted on '{db_name}' to '{username}'."
+        except psycopg2.Error as e:
+            logger.error(f"Failed to grant schema privileges: {e}")
+            return False, str(e)
+        finally:
+            conn2.close()
 
     @classmethod
     def revoke_privileges(cls, db_name: str, username: str, host: str = 'localhost') -> tuple[bool, str]:
