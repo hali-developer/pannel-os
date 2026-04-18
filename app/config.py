@@ -41,6 +41,10 @@ class BaseConfig:
     # Web Root
     WEB_ROOT = os.environ.get('WEB_ROOT', '/var/www')
 
+    # Base URL of the server (used to build external links in templates)
+    BASE_URL = os.environ.get('BASE_URL', 'http://localhost')
+    PHPPGADMIN_URL = os.environ.get('PHPPGADMIN_URL', f"{os.environ.get('BASE_URL', 'http://localhost')}/phppgadmin")
+
     # SSL (Let's Encrypt / Certbot)
     SSL_ADMIN_EMAIL = os.environ.get('SSL_ADMIN_EMAIL', 'hali35275@gmail.com')
 
@@ -75,7 +79,7 @@ class DevelopmentConfig(BaseConfig):
 class ProductionConfig(BaseConfig):
     """Production configuration."""
     DEBUG = False
-    # Panel is served over plain HTTP on port 8000 — cookies must NOT require HTTPS
+    # Panel is served over plain HTTP on port 8800 — cookies must NOT require HTTPS
     JWT_COOKIE_SECURE = False
     SESSION_COOKIE_SECURE = False
     SESSION_COOKIE_HTTPONLY = True

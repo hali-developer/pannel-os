@@ -119,8 +119,8 @@
         <div class="panel-card mb-3">
             <div class="card-header">
                 <h5><i class="bi bi-database-fill"></i> My Databases</h5>
-                <a href="/phpmyadmin" target="_blank" class="btn-panel btn-ghost btn-sm-panel">
-                    <i class="bi bi-box-arrow-up-right"></i> phpMyAdmin
+                <a href="{{ phppgadmin_url }}" target="_blank" class="btn-panel btn-ghost w-100">
+                    <i class="bi bi-database-gear"></i> Open phpPgAdmin
                 </a>
             </div>
             <div class="card-body">
@@ -156,7 +156,7 @@
                 {% else %}
                     <div class="empty-state" style="padding:1.5rem;">
                         <i class="bi bi-database"></i>
-                        <p>No databases. Create one on the right.</p>
+                        <p>Access phpPgAdmin to manage PostgreSQL databases directly.</p>
                     </div>
                 {% endif %}
             </div>

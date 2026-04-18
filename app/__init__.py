@@ -29,6 +29,9 @@ def create_app(config_name=None):
     # ── Register Blueprints ──
     _register_blueprints(app)
 
+    # ── Inject Template Globals ──
+    _inject_template_globals(app)
+
     # ── Setup Logging ──
     _setup_logging(app)
 
@@ -42,6 +45,18 @@ def create_app(config_name=None):
     _register_error_handlers(app)
 
     return app
+
+
+def _inject_template_globals(app):
+    """Inject global variables available in every Jinja2 template."""
+    @app.context_processor
+    def globals():
+        return {
+            'base_url': app.config.get('BASE_URL', 'http://localhost'),
+            'phppgadmin_url': app.config.get('PHPPGADMIN_URL', app.config.get('BASE_URL', 'http://localhost') + '/phppgadmin'),
+            'panel_name': app.config.get('PANEL_NAME', 'VPS Panel'),
+            'panel_version': app.config.get('PANEL_VERSION', '3.0.0'),
+        }
 
 
 def _register_blueprints(app):

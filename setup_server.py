@@ -42,6 +42,40 @@ def generate_fernet_key():
     return Fernet.generate_key().decode()
 
 
+def get_public_ip() -> str:
+    """Detect the server's public IP address automatically."""
+    # Method 1: hostname -I (fastest, works offline)
+    try:
+        result = subprocess.run(["hostname", "-I"], capture_output=True, text=True, timeout=5)
+        ips = result.stdout.strip().split()
+        # Filter out loopback and IPv6, take first real IPv4
+        for ip in ips:
+            parts = ip.split('.')
+            if len(parts) == 4 and parts[0] not in ('127', '10', '172', '192'):
+                return ip
+        # Fallback to any non-loopback if no public IP found above
+        if ips:
+            return ips[0]
+    except Exception:
+        pass
+
+    # Method 2: curl public IP service
+    for service in ['https://api.ipify.org', 'https://ifconfig.me', 'https://icanhazip.com']:
+        try:
+            result = subprocess.run(
+                ["curl", "-s", "--max-time", "5", service],
+                capture_output=True, text=True, timeout=10
+            )
+            ip = result.stdout.strip()
+            if ip and ip.count('.') == 3:
+                return ip
+        except Exception:
+            continue
+
+    # Final fallback
+    return 'YOUR_SERVER_IP'
+
+
 def main():
     print("=" * 60)
     print("  VPS Panel v3.0 — Server Setup (Ubuntu 24.04+)")
@@ -51,6 +85,11 @@ def main():
     if os.geteuid() != 0:
         print("⚠  This script must be run as root (sudo).")
         sys.exit(1)
+
+    # ── Detect Server IP ──
+    print("\n  Detecting server IP address...")
+    server_ip = get_public_ip()
+    print(f"  ✅ Server IP: {server_ip}")
 
     # ── Step 1: System Packages ──
     print("\n[1/7] Installing system packages...")
@@ -222,6 +261,8 @@ POSTGRESQL_ADMIN_PASSWORD={mysql_admin_pass}
 DB_PASSWORD_ENCRYPTION_KEY={fernet_key}
 
 WEB_ROOT=/var/www
+BASE_URL=http://{server_ip}:8800
+PHPPGADMIN_URL=http://{server_ip}/phppgadmin
 LOG_LEVEL=INFO
 LOG_FILE=/var/log/panel/panel.log
 PANEL_NAME=VPS Panel
@@ -644,7 +685,7 @@ WorkingDirectory={panel_dir}
 EnvironmentFile={panel_dir}/.env
 Environment="PATH={venv_path}/bin"
 Environment="FLASK_ENV=production"
-ExecStart={gunicorn_path} --workers 3 --bind 0.0.0.0:8000 --timeout 120 run:app
+ExecStart={gunicorn_path} --workers 3 --bind 0.0.0.0:8800 --timeout 120 run:app
 Restart=always
 RestartSec=5
 
@@ -668,8 +709,8 @@ WantedBy=multi-user.target
     print("  ✅ VPS Panel v3.0 setup complete!")
     print("=" * 60)
     print(f"""
-  Panel URL:      http://YOUR_IP:8000
-  phpPgAdmin:     http://YOUR_IP/phppgadmin
+  Panel URL:      http://{server_ip}:8800
+  phpPgAdmin:     http://{server_ip}/phppgadmin
   
   Default login:  {web_admin_user} / {web_admin_pass}
   
@@ -678,11 +719,9 @@ WantedBy=multi-user.target
   
   IMPORTANT: Save these credentials securely! They are in .env as well.
   
-  vsftpd Config:
-    - chroot_local_user=YES
-    - allow_writeable_chroot=YES
-    - FTPS enabled with SSL
-    - Passive ports: 40000-50000
+  ProFTPD Config:
+    - PostgreSQL-backed authentication
+    - FTPS enabled with TLS
 """)
 
 
