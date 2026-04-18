@@ -18,12 +18,12 @@ logger = logging.getLogger(__name__)
 
 def create_ftp_account(user_id: int, username: str, password: str, domain_id: int) -> tuple[bool, str]:
     """
-    Create an FTP account:
-      1. Validate user exists
-      2. Check for duplicate FTP username
-      3. Provision system user (Linux) or mock (Windows)
-      4. Record in panel DB
+    Create an FTP account with a unique prefixed name.
     """
+    from app.core.utils import generate_prefixed_name
+    # Apply unique prefix
+    username = generate_prefixed_name(username)
+    
     user = User.query.get(user_id)
     if not user:
         return False, "User not found."

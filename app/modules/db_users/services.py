@@ -55,12 +55,13 @@ def _decrypt_password(encrypted: str) -> str:
 
 def create_db_user(owner_user_id: int, db_username: str, password: str) -> tuple[bool, str]:
     """
-    Create a PostgreSQL database user:
-      1. Validate owner exists
-      2. Check for duplicates
-      3. Create PostgreSQL user
-      4. Record in panel DB with encrypted password
+    Create a PostgreSQL database user with a unique prefixed name.
     """
+    from app.core.utils import generate_prefixed_name
+    
+    # Apply unique prefix
+    db_username = generate_prefixed_name(db_username)
+    
     owner = User.query.get(owner_user_id)
     if not owner:
         return False, "Owner user not found."

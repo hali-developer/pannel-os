@@ -16,13 +16,14 @@ logger = logging.getLogger(__name__)
 
 def create_user(username: str, password: str, role: str = 'client', email: str = None) -> tuple[bool, str, User]:
     """
-    Create a new panel user.
-    For 'client' role:
-      - Creates a Linux system user (for FTPS + file ownership)
-      - Sets up home directory at /var/www/{username}/public_html
-      - Configures vsftpd for this user
+    Create a new panel user with a unique prefixed name.
     """
-    # Check for duplicates
+    from app.core.utils import generate_prefixed_name
+    
+    # Apply unique prefix
+    username = generate_prefixed_name(username)
+    
+    # Check for duplicates (safety check, though random prefix makes it unlikely)
     existing = User.query.filter_by(username=username).first()
     if existing:
         return False, f"Username '{username}' already exists.", None

@@ -16,12 +16,14 @@ logger = logging.getLogger(__name__)
 
 def create_database(user_id: int, db_name: str, db_user: str, password: str) -> tuple[bool, str]:
     """
-    Create a client MySQL database:
-      1. Validate user exists
-      2. Check for duplicates in panel DB
-      3. Provision on MySQL (CREATE DATABASE, CREATE USER, GRANT)
-      4. Record in MySQL panel DB
+    Create a client MySQL database with unique prefixed names.
     """
+    from app.core.utils import generate_prefixed_name
+    
+    # Apply unique prefixes
+    db_name = generate_prefixed_name(db_name)
+    db_user = generate_prefixed_name(db_user)
+    
     user = User.query.get(user_id)
     if not user:
         return False, "User not found."
