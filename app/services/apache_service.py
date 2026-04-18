@@ -32,30 +32,20 @@ def remove_domain_script(domain: str):
         return False, str(e)
 
 
-def install_ssl_certbot(domain: str, email: str) -> tuple[bool, str]:
+def install_ssl_script(domain: str) -> tuple[bool, str]:
     """
-    Run Certbot to obtain a Let's Encrypt certificate for the domain.
-    Mode 'certonly' is used so that we can manually manage the Apache SSL config file.
-    Uses --non-interactive and --agree-tos so it never blocks.
+    Run add_ssl.sh to obtain a Let's Encrypt certificate and configure Apache.
     """
     try:
         result = subprocess.run(
-            [
-                "/usr/bin/sudo", "/usr/bin/certbot",
-                "certonly",
-                "--apache",
-                "-d", domain,
-                "--non-interactive",
-                "--agree-tos",
-                "-m", email,
-            ],
+            ["/usr/bin/sudo", "/usr/local/bin/add_ssl.sh", domain],
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=180,
         )
         return result.returncode == 0, result.stdout + result.stderr
     except subprocess.TimeoutExpired:
-        return False, "Certbot timed out after 120 seconds."
+        return False, "add_ssl.sh timed out after 180 seconds."
     except Exception as e:
         return False, str(e)
 
@@ -128,17 +118,11 @@ class ApacheService:
 
     @classmethod
     def install_ssl(cls, domain: str, email: str) -> tuple[bool, str]:
-        """Obtain and install a Let's Encrypt SSL certificate via Certbot."""
-        ok, msg = install_ssl_certbot(domain, email)
+        """Obtain and install a Let's Encrypt SSL certificate via add_ssl.sh."""
+        ok, msg = install_ssl_script(domain)
         if not ok:
-            return False, f"SSL certificate acquisition failed: {msg}"
-        
-        # Deploy SSL Apache configuration
-        ok_vhost, msg_vhost = cls.deploy_ssl_config(domain)
-        if not ok_vhost:
-            return False, f"Cert obtained, but SSL config deployment failed: {msg_vhost}"
-
-        return True, f"SSL installed and configured for '{domain}'.\n{msg}\n{msg_vhost}"
+            return False, f"SSL installation failed: {msg}"
+        return True, f"SSL installed and configured for '{domain}'.\n{msg}"
 
     @classmethod
     def deploy_ssl_config(cls, domain: str, web_root: str = "/var/www") -> tuple[bool, str]:
