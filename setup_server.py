@@ -207,7 +207,7 @@ LoadModule mod_tls.c /usr/lib/proftpd/mod_tls.so
     SQLConnectInfo {panel_db}@localhost {panel_user} {panel_pass}
 
     SQLUserInfo ftp_accounts username password NULL NULL home_directory NULL
-    SQLUserWhereClause "is_active=1"
+    SQLUserWhereClause "is_active=true"
 
     RequireValidShell off
     AllowOverwrite on
