@@ -252,7 +252,10 @@ def main():
     print("\n[2/7] Configuring MySQL...")
     
     mysql_cmds = f"""
--- Create provisioning admin
+-- Ensure root has the desired password
+ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '{mysql_admin_pass}';
+
+-- Create/Update provisioning admin if different from root
 CREATE USER IF NOT EXISTS '{mysql_admin_user}'@'localhost' IDENTIFIED BY '{mysql_admin_pass}';
 GRANT ALL PRIVILEGES ON *.* TO '{mysql_admin_user}'@'localhost' WITH GRANT OPTION;
 
@@ -263,6 +266,7 @@ GRANT ALL PRIVILEGES ON *.* TO '{panel_user}'@'localhost';
 
 FLUSH PRIVILEGES;
 """
+    # Use sudo to ensure we can connect via auth_socket if native_password isn't set yet
     cmd = ['sudo', 'mysql', '-e', mysql_cmds]
 
     try:
@@ -437,15 +441,15 @@ PANEL_ADMIN_PASSWORD={web_admin_pass}
     schema_path = os.path.join(panel_dir, 'schema_mysql.sql')
     if os.path.exists(schema_path):
         print("  Loading MySQL schema...")
-        # mysql command to load schema
-        run(["mysql", "-u", mysql_admin_user, f"-p{mysql_admin_pass}", panel_db, "-e", f"source {schema_path}"], check=False)
+        # Use sudo and source to load schema reliably
+        run(["sudo", "mysql", "-u", "root", f"-p{mysql_admin_pass}", panel_db, "-e", f"source {schema_path}"], check=False)
     else:
         # Fallback to python init
         run(["bash", "-c", f"cd {panel_dir} && {python_path} -c \"from app import create_app; create_app()\""])
 
     # Grant privileges to the panel user
     mysql_grant = f"GRANT ALL PRIVILEGES ON {panel_db}.* TO '{panel_user}'@'localhost';"
-    run(["mysql", "-u", mysql_admin_user, f"-p{mysql_admin_pass}", "-e", mysql_grant], check=False)
+    run(["sudo", "mysql", "-u", "root", f"-p{mysql_admin_pass}", "-e", mysql_grant], check=False)
 
     # Ensure Web Admin user is created correctly
     admin_setup_script = f"""
@@ -540,6 +544,15 @@ except Exception as e:
     run(["systemctl", "restart", "apache2"], check=False)
     os.makedirs('/var/www/letsencrypt/.well-known/acme-challenge', exist_ok=True)
     run(["chown", "-R", "www-data:www-data", "/var/www/letsencrypt"], check=False)
+    
+    letsencrypt_conf = """Alias /.well-known/acme-challenge/ /var/www/letsencrypt/.well-known/acme-challenge/
+<Directory /var/www/letsencrypt/>
+    AllowOverride None
+    Options MultiViews Indexes SymLinksIfOwnerMatch IncludesNoExec
+    Require method GET POST OPTIONS
+    Require all granted
+</Directory>
+"""
     with open('/etc/apache2/conf-available/letsencrypt.conf', 'w') as f:
         f.write(letsencrypt_conf)
     run(["a2enconf", "letsencrypt"], check=False)
