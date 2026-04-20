@@ -252,21 +252,23 @@ def main():
     print("\n[2/7] Configuring MySQL...")
     
     mysql_cmds = f"""
--- Ensure root has the desired password
+-- Force mysql_native_password for root (best compatibility with Flask connectors)
 ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '{mysql_admin_pass}';
 
--- Create/Update provisioning admin if different from root
-CREATE USER IF NOT EXISTS '{mysql_admin_user}'@'localhost' IDENTIFIED BY '{mysql_admin_pass}';
+-- Create provisioning admin if different from root
+CREATE USER IF NOT EXISTS '{mysql_admin_user}'@'localhost' IDENTIFIED WITH mysql_native_password BY '{mysql_admin_pass}';
+ALTER USER '{mysql_admin_user}'@'localhost' IDENTIFIED WITH mysql_native_password BY '{mysql_admin_pass}';
 GRANT ALL PRIVILEGES ON *.* TO '{mysql_admin_user}'@'localhost' WITH GRANT OPTION;
 
--- Create internal panel database
+-- Create internal panel database and user
 CREATE DATABASE IF NOT EXISTS {panel_db} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS '{panel_user}'@'localhost' IDENTIFIED BY '{panel_pass}';
-GRANT ALL PRIVILEGES ON *.* TO '{panel_user}'@'localhost';
+CREATE USER IF NOT EXISTS '{panel_user}'@'localhost' IDENTIFIED WITH mysql_native_password BY '{panel_pass}';
+ALTER USER '{panel_user}'@'localhost' IDENTIFIED WITH mysql_native_password BY '{panel_pass}';
+GRANT ALL PRIVILEGES ON {panel_db}.* TO '{panel_user}'@'localhost';
 
 FLUSH PRIVILEGES;
 """
-    # Use sudo to ensure we can connect via auth_socket if native_password isn't set yet
+    # Use sudo to ensure we can connect via auth_socket initially
     cmd = ['sudo', 'mysql', '-e', mysql_cmds]
 
     try:
@@ -504,8 +506,9 @@ except Exception as e:
         run(["cp", ssl_params_src, "/etc/apache2/conf-available/ssl-params.conf"])
         run(["a2enconf", "ssl-params"], check=False)
 
-    # ── Apache VirtualHost for Panel & phpMyAdmin ──
-    panel_apache = f"""<VirtualHost *:8080>
+    # ── Apache Configuration for Tools (phpMyAdmin / pgAdmin) ──
+    # We no longer proxy the panel through Apache. It runs directly on 8800.
+    tools_apache = f"""<VirtualHost *:80>
     ServerName _
 
     # phpMyAdmin Integration
@@ -517,28 +520,22 @@ except Exception as e:
         Require all granted
     </Directory>
 
-    # Exclude /phpmyadmin from proxying
-    ProxyPass /phpmyadmin !
-
-    ProxyPreserveHost On
-    ProxyPass / http://127.0.0.1:5000/
-    ProxyPassReverse / http://127.0.0.1:5000/
-
+    # Static file serving for the panel (Optional, since Gunicorn 0.0.0.0:8800 handles its own)
     Alias /static {panel_dir}/static
     <Directory {panel_dir}/static>
         Require all granted
     </Directory>
 
-    ErrorLog ${{APACHE_LOG_DIR}}/panel_error.log
-    CustomLog ${{APACHE_LOG_DIR}}/panel_access.log combined
+    ErrorLog ${{APACHE_LOG_DIR}}/panel_tools_error.log
+    CustomLog ${{APACHE_LOG_DIR}}/panel_tools_access.log combined
 </VirtualHost>
 """
-    # Ensure port 8080 is configured
-    run(["bash", "-c", "echo 'Listen 8080' > /etc/apache2/conf-available/vps-panel-ports.conf"], check=False)
-    run(["a2enconf", "vps-panel-ports"], check=False)
+    # Disable the proxy port config as we move to direct port 8800
+    run(["bash", "-c", "rm -f /etc/apache2/conf-available/vps-panel-ports.conf"], check=False)
+    run(["a2disconf", "vps-panel-ports"], check=False)
     
     with open('/etc/apache2/sites-available/vps-panel.conf', 'w') as f:
-        f.write(panel_apache)
+        f.write(tools_apache)
 
     run(["a2ensite", "vps-panel.conf"], check=False)
     run(["systemctl", "restart", "apache2"], check=False)
@@ -931,8 +928,9 @@ WantedBy=multi-user.target
   IMPORTANT: Save these credentials securely! They are in .env as well.
   
   ProFTPD Config:
-    - PostgreSQL-backed authentication
+    - MySQL-backed authentication
     - FTPS enabled with TLS
+    - PASSIVE PORTS: 40000-50000
 """)
 
 
