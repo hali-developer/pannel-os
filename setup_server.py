@@ -22,6 +22,8 @@ import secrets
 import string
 import shutil
 import tempfile
+import argparse
+import re
 
 
 def run(cmd, check=True):
@@ -76,7 +78,65 @@ def get_public_ip() -> str:
     return 'YOUR_SERVER_IP'
 
 
+def update_env_file(env_path, key, value):
+    """Surgically update a key in .env file."""
+    if not os.path.exists(env_path):
+        return False
+    with open(env_path, 'r') as f:
+        lines = f.readlines()
+    updated = False
+    new_lines = []
+    pattern = re.compile(rf'^\s*{key}\s*=.*')
+    for line in lines:
+        if pattern.match(line):
+            new_lines.append(f"{key}={value}\n")
+            updated = True
+        else:
+            new_lines.append(line)
+    if not updated:
+        if new_lines and not new_lines[-1].endswith('\n'):
+            new_lines.append('\n')
+        new_lines.append(f"{key}={value}\n")
+    with open(env_path, 'w') as f:
+        f.writelines(new_lines)
+    return True
+
+
+def reset_mysql_password(new_pass, env_path=None):
+    """Reset MySQL root password via sudo and sync to .env if provided."""
+    print(f"\n  Attempting MySQL root password reset...")
+    # Method 1: ALTER USER (MySQL 8.0+)
+    sql = f"ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '{new_pass}';"
+    try:
+        # Use sudo to bypass auth_socket/password if running as system root
+        subprocess.run(["mysql", "-e", sql], check=True, capture_output=True)
+        print(f"  ✅ MySQL password updated successfully.")
+        if env_path:
+            update_env_file(env_path, 'MYSQL_ROOT_PASSWORD', new_pass)
+            update_env_file(env_path, 'MYSQL_ADMIN_PASSWORD', new_pass)
+            print(f"  ✅ Configuration synchronized in {env_path}")
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"  ❌ MySQL reset failed: {e.stderr.decode().strip()}")
+        print("  Trying legacy method...")
+        try:
+            sql_legacy = f"SET PASSWORD FOR 'root'@'localhost' = PASSWORD('{new_pass}');"
+            subprocess.run(["mysql", "-e", sql_legacy], check=True, capture_output=True)
+            print(f"  ✅ MySQL password updated (legacy method).")
+            if env_path:
+                update_env_file(env_path, 'MYSQL_ROOT_PASSWORD', new_pass)
+                update_env_file(env_path, 'MYSQL_ADMIN_PASSWORD', new_pass)
+            return True
+        except Exception as e2:
+            print(f"  ❌ All MySQL reset methods failed: {e2}")
+            return False
+
+
 def main():
+    parser = argparse.ArgumentParser(description="VPS Panel v3.0 — Server Setup")
+    parser.add_argument('--reset-mysql', action='store_true', help="Only reset MySQL root password and update .env")
+    args = parser.parse_args()
+
     print("=" * 60)
     print("  VPS Panel v3.0 — Server Setup (Ubuntu 24.04+)")
     print("=" * 60)
@@ -86,10 +146,46 @@ def main():
         print("⚠  This script must be run as root (sudo).")
         sys.exit(1)
 
+    panel_dir = "/var/www/panel"
+    env_path = os.path.join(panel_dir, '.env')
+
+    # ── Handle --reset-mysql Flag ──
+    if args.reset_mysql:
+        if not os.path.exists(env_path):
+            print(f"  ❌ Error: {env_path} not found. Perform a full install first.")
+            sys.exit(1)
+        new_pass = generate_secret(20)
+        if reset_mysql_password(new_pass, env_path):
+            print(f"\n  RESTARTING PANEL SERVICE...")
+            subprocess.run(["systemctl", "restart", "vps-panel"], check=False)
+            print(f"\n  ✅ SUCCESS! New MySQL Root Password: {new_pass}")
+        sys.exit(0)
+
     # ── Detect Server IP ──
     print("\n  Detecting server IP address...")
     server_ip = get_public_ip()
     print(f"  ✅ Server IP: {server_ip}")
+
+    # ── Interactive Credentials Collection ──
+    print("\n" + "="*30)
+    print("  CREDENTIALS CONFIGURATION")
+    print("="*30)
+    
+    # MySQL Admin (Provisioning)
+    mysql_admin_user = input("  MySQL panel admin username [root]: ").strip() or "root"
+    mysql_admin_pass = getpass.getpass(f"  MySQL password for '{mysql_admin_user}': ") or "StrongMySQLPass123!"
+    
+    # Internal Panel DB (The one SQLAlchemy connects to)
+    panel_db = input("  Internal Panel DB name [panel_db]: ").strip() or "panel_db"
+    panel_user = input("  Internal Panel DB user [panel_user]: ").strip() or "panel_internal"
+    panel_pass = getpass.getpass(f"  Internal Panel DB password: ") or generate_secret(16)
+    
+    # Web Admin login (Panel UI)
+    web_admin_user = "admin"
+    web_admin_pass = "admin"
+    
+    # PostgreSQL Admin (Optional/Client support)
+    postgres_admin_pass = generate_secret(20)
 
     # ── Step 1: System Packages ──
     print("\n[1/7] Installing system packages...")
@@ -100,9 +196,10 @@ def main():
         'openssl',
         'postgresql',
         'postgresql-contrib',
-        'proftpd-mod-pgsql',
+        'proftpd-mod-mysql', # Changed from postgres to mysql
         'proftpd-mod-crypto',
         'libapache2-mod-php',
+        'php-mysql',
         'php-pgsql',
         'php-mbstring',
         'php-zip',
@@ -110,12 +207,12 @@ def main():
         'php-json',
         'php-curl',
         'mysql-server',
-        'php-mysql',
         'python3-pip',
         'python3-venv',
         'python3-dev',
         'certbot',
         'python3-certbot-apache',
+        'libmysqlclient-dev', # Added for mysqlclient support
         'libpq-dev',
         'build-essential',
         'curl',
@@ -150,64 +247,51 @@ def main():
         )
         run(["chown", "-R", "www-data:www-data", panel_dir], check=False)
         print(f"  ✅ Panel installed to: {panel_dir}")
-    else:
-        print(f"  ✅ Running Panel directly from: {panel_dir}")
 
-    # ── Step 2: PostgreSQL Setup (Panel & Admin) ──
-    print("\n[2/7] Configuring PostgreSQL...")
+    # ── Step 2: MySQL Setup (Panel & Admin) ──
+    print("\n[2/7] Configuring MySQL...")
     
-    # Generate automatic credentials for security
-    mysql_admin_user = "postgres"
-    mysql_admin_pass = generate_secret(16)
-    
-    panel_db = "panel_db"
-    panel_user = "panel_internal"
-    panel_pass = generate_secret(16)
-    
-    web_admin_user = "admin"
-    web_admin_pass = "admin"
+    mysql_cmds = f"""
+-- Create provisioning admin
+CREATE USER IF NOT EXISTS '{mysql_admin_user}'@'localhost' IDENTIFIED BY '{mysql_admin_pass}';
+GRANT ALL PRIVILEGES ON *.* TO '{mysql_admin_user}'@'localhost' WITH GRANT OPTION;
 
-    pg_cmds = [
-        f"ALTER USER {mysql_admin_user} WITH PASSWORD '{mysql_admin_pass}';",
-        # Terminate any existing connections to the database to safely drop it
-        f"SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = '{panel_db}' AND pid <> pg_backend_pid();",
-        f"DROP DATABASE IF EXISTS {panel_db};",
-        f"DROP USER IF EXISTS {panel_user};",
-        f"CREATE USER {panel_user} WITH ENCRYPTED PASSWORD '{panel_pass}';",
-        f"CREATE DATABASE {panel_db} OWNER {panel_user} ENCODING 'utf8';"
-    ]
+-- Create internal panel database
+CREATE DATABASE IF NOT EXISTS {panel_db} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS '{panel_user}'@'localhost' IDENTIFIED BY '{panel_pass}';
+GRANT ALL PRIVILEGES ON *.* TO '{panel_user}'@'localhost';
 
-    setup_failed = False
-    for sql in pg_cmds:
-        cmd = ['sudo', '-u', 'postgres', 'psql', '-c', sql]
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True)
-            if proc.returncode != 0 and 'already exists' not in proc.stderr:
-                print(f"  ❌ PostgreSQL setup failed: {proc.stderr}")
-                setup_failed = True
-                break
-        except Exception as e:
-            print(f"  ❌ PostgreSQL setup error: {e}")
-            setup_failed = True
-            break
-            
-    if not setup_failed:
-        print("  ✅ PostgreSQL panel database and users configured.")
+FLUSH PRIVILEGES;
+"""
+    cmd = ['sudo', 'mysql', '-e', mysql_cmds]
 
-    # ── Step 2.2: MySQL Setup ──
-    print("\n[2.2/7] Configuring MySQL...")
-    mysql_root_pass = generate_secret(16)
     try:
-        # Secure MySQL installation (basic)
-        run(["mysql", "-e", f"ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '{mysql_root_pass}';"], check=False)
-        run(["mysql", "-u", "root", f"-p{mysql_root_pass}", "-e", "DELETE FROM mysql.user WHERE User='';"], check=False)
-        run(["mysql", "-u", "root", f"-p{mysql_root_pass}", "-e", "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"], check=False)
-        run(["mysql", "-u", "root", f"-p{mysql_root_pass}", "-e", "DROP DATABASE IF EXISTS test;"], check=False)
-        run(["mysql", "-u", "root", f"-p{mysql_root_pass}", "-e", "DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';"], check=False)
-        run(["mysql", "-u", "root", f"-p{mysql_root_pass}", "-e", "FLUSH PRIVILEGES;"], check=False)
-        print("  ✅ MySQL secured and root password set.")
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        if proc.returncode == 0:
+            print("  ✅ MySQL panel database and admin users configured.")
+        else:
+             print(f"  ❌ MySQL setup failed: {proc.stderr}")
     except Exception as e:
-        print(f"  ❌ MySQL configuration failed: {e}")
+        print(f"  ❌ MySQL setup error: {e}")
+
+    # ── Step 2.2: PostgreSQL Setup (Client Databases) ──
+    print("\n[2.2/7] Configuring PostgreSQL (Alternative Engine)...")
+    pg_cmds = [
+        f"ALTER USER postgres WITH PASSWORD '{postgres_admin_pass}';",
+    ]
+    for sql in pg_cmds:
+        run(['sudo', '-u', 'postgres', 'psql', '-c', sql], check=False)
+    print("  ✅ PostgreSQL configured as secondary service.")
+
+    # ── Step 2.3: Final Hardening ──
+    try:
+        # Additional MySQL hardening
+        run(["mysql", "-u", mysql_admin_user, f"-p{mysql_admin_pass}", "-e", "DELETE FROM mysql.user WHERE User='';"], check=False)
+        run(["mysql", "-u", mysql_admin_user, f"-p{mysql_admin_pass}", "-e", "DROP DATABASE IF EXISTS test;"], check=False)
+        run(["mysql", "-u", mysql_admin_user, f"-p{mysql_admin_pass}", "-e", "FLUSH PRIVILEGES;"], check=False)
+        print("  ✅ MySQL hardening completed.")
+    except Exception as e:
+        print(f"  ❌ MySQL hardening failed: {e}")
 
     # ── Step 3: proftpd Configuration ──
     print("\n[3/7] Configuring proftpd...")
@@ -222,11 +306,11 @@ def main():
         "-out", "/etc/ssl/certs/proftpd.crt"
     ], check=False)
     ftpd_conf = f"""LoadModule mod_sql.c /usr/lib/proftpd/mod_sql.so
-LoadModule mod_sql_postgres.c /usr/lib/proftpd/mod_sql_postgres.so
+LoadModule mod_sql_mysql.c /usr/lib/proftpd/mod_sql_mysql.so
 LoadModule mod_tls.c /usr/lib/proftpd/mod_tls.so
 
 <IfModule mod_sql.c>
-    SQLBackend postgres
+    SQLBackend mysql
     SQLAuthTypes Crypt
     SQLAuthenticate users
     SQLDefaultUID 33
@@ -281,11 +365,12 @@ PANEL_DB_HOST=localhost
 PANEL_DB_NAME={panel_db}
 PANEL_DB_USER={panel_user}
 PANEL_DB_PASSWORD={panel_pass}
+PANEL_DB_PORT=3306
 
 POSTGRESQL_HOST=localhost
 POSTGRESQL_PORT=5432
-POSTGRESQL_ADMIN_USER={mysql_admin_user}
-POSTGRESQL_ADMIN_PASSWORD={mysql_admin_pass}
+POSTGRESQL_ADMIN_USER=postgres
+POSTGRESQL_ADMIN_PASSWORD={postgres_admin_pass}
 
 DB_PASSWORD_ENCRYPTION_KEY={fernet_key}
 
@@ -294,7 +379,11 @@ PANEL_URL=http://{server_ip}:8800
 PGADMIN_URL=http://{server_ip}/pgadmin4
 PHPMYADMIN_URL=http://{server_ip}/phpmyadmin
 
-MYSQL_ROOT_PASSWORD={mysql_root_pass}
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_ADMIN_USER={mysql_admin_user}
+MYSQL_ADMIN_PASSWORD={mysql_admin_pass}
+
 LOG_LEVEL=INFO
 LOG_FILE=/var/log/panel/panel.log
 PANEL_NAME=VPS Panel
@@ -345,19 +434,18 @@ PANEL_ADMIN_PASSWORD={web_admin_pass}
 
     python_path = os.path.join(venv_path, 'bin', 'python')
     # Initialize database schema
-    schema_path = os.path.join(panel_dir, 'schema.sql')
+    schema_path = os.path.join(panel_dir, 'schema_mysql.sql')
     if os.path.exists(schema_path):
-        print("  Loading PostgreSQL schema...")
-        # psql can run files directly via -f on the targeted database
-        run(["sudo", "-u", "postgres", "psql", "-d", panel_db, "-f", schema_path], check=False)
+        print("  Loading MySQL schema...")
+        # mysql command to load schema
+        run(["mysql", "-u", mysql_admin_user, f"-p{mysql_admin_pass}", panel_db, "-e", f"source {schema_path}"], check=False)
     else:
         # Fallback to python init
         run(["bash", "-c", f"cd {panel_dir} && {python_path} -c \"from app import create_app; create_app()\""])
 
-    # Grant privileges to the panel user so it can modify tables created by the postgres system user
-    run(["sudo", "-u", "postgres", "psql", "-d", panel_db, "-c", f"GRANT USAGE, CREATE ON SCHEMA public TO {panel_user};"], check=False)
-    run(["sudo", "-u", "postgres", "psql", "-d", panel_db, "-c", f"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {panel_user};"], check=False)
-    run(["sudo", "-u", "postgres", "psql", "-d", panel_db, "-c", f"GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {panel_user};"], check=False)
+    # Grant privileges to the panel user
+    mysql_grant = f"GRANT ALL PRIVILEGES ON {panel_db}.* TO '{panel_user}'@'localhost';"
+    run(["mysql", "-u", mysql_admin_user, f"-p{mysql_admin_pass}", "-e", mysql_grant], check=False)
 
     # Ensure Web Admin user is created correctly
     admin_setup_script = f"""
@@ -412,15 +500,44 @@ except Exception as e:
         run(["cp", ssl_params_src, "/etc/apache2/conf-available/ssl-params.conf"])
         run(["a2enconf", "ssl-params"], check=False)
 
-    # Set up global Let's Encrypt webroot alias to solve 404s behind proxies
-    letsencrypt_conf = """Alias /.well-known/acme-challenge/ /var/www/letsencrypt/.well-known/acme-challenge/
-<Directory /var/www/letsencrypt/>
-    AllowOverride None
-    Options MultiViews Indexes SymLinksIfOwnerMatch IncludesNoExec
-    Require method GET POST OPTIONS
-    Require all granted
-</Directory>
+    # ── Apache VirtualHost for Panel & phpMyAdmin ──
+    panel_apache = f"""<VirtualHost *:8080>
+    ServerName _
+
+    # phpMyAdmin Integration
+    Alias /phpmyadmin /usr/share/phpmyadmin
+    <Directory /usr/share/phpmyadmin>
+        Options FollowSymLinks
+        DirectoryIndex index.php
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    # Exclude /phpmyadmin from proxying
+    ProxyPass /phpmyadmin !
+
+    ProxyPreserveHost On
+    ProxyPass / http://127.0.0.1:5000/
+    ProxyPassReverse / http://127.0.0.1:5000/
+
+    Alias /static {panel_dir}/static
+    <Directory {panel_dir}/static>
+        Require all granted
+    </Directory>
+
+    ErrorLog ${{APACHE_LOG_DIR}}/panel_error.log
+    CustomLog ${{APACHE_LOG_DIR}}/panel_access.log combined
+</VirtualHost>
 """
+    # Ensure port 8080 is configured
+    run(["bash", "-c", "echo 'Listen 8080' > /etc/apache2/conf-available/vps-panel-ports.conf"], check=False)
+    run(["a2enconf", "vps-panel-ports"], check=False)
+    
+    with open('/etc/apache2/sites-available/vps-panel.conf', 'w') as f:
+        f.write(panel_apache)
+
+    run(["a2ensite", "vps-panel.conf"], check=False)
+    run(["systemctl", "restart", "apache2"], check=False)
     os.makedirs('/var/www/letsencrypt/.well-known/acme-challenge', exist_ok=True)
     run(["chown", "-R", "www-data:www-data", "/var/www/letsencrypt"], check=False)
     with open('/etc/apache2/conf-available/letsencrypt.conf', 'w') as f:

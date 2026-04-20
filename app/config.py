@@ -21,15 +21,15 @@ class BaseConfig:
     JWT_TOKEN_LOCATION = ['headers', 'cookies']
     JWT_COOKIE_SECURE = False  # Set True in production with HTTPS
 
-    # Panel Database (Using PostgreSQL for all data)
+    # Panel Database (Using MySQL for all internal panel data)
     PANEL_DB_HOST = os.environ.get('PANEL_DB_HOST', 'localhost')
-    PANEL_DB_PORT = int(os.environ.get('PANEL_DB_PORT', 5432))
+    PANEL_DB_PORT = int(os.environ.get('PANEL_DB_PORT', 3306))
     PANEL_DB_USER = os.environ.get('PANEL_DB_USER', 'panel_internal')
-    PANEL_DB_PASSWORD = os.environ.get('PANEL_DB_PASSWORD', 'KmhntqMUDZda9Q9P')
+    PANEL_DB_PASSWORD = os.environ.get('PANEL_DB_PASSWORD', 'default_pass')
     PANEL_DB_NAME = os.environ.get('PANEL_DB_NAME', 'panel_db')
 
-    # Construct PostgreSQL URI
-    SQLALCHEMY_DATABASE_URI = f"postgresql://{PANEL_DB_USER}:{PANEL_DB_PASSWORD}@{PANEL_DB_HOST}:{PANEL_DB_PORT}/{PANEL_DB_NAME}"
+    # Construct MySQL URI (using mysql-connector-python)
+    SQLALCHEMY_DATABASE_URI = f"mysql+mysqlconnector://{PANEL_DB_USER}:{PANEL_DB_PASSWORD}@{PANEL_DB_HOST}:{PANEL_DB_PORT}/{PANEL_DB_NAME}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
