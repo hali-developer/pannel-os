@@ -3,7 +3,7 @@
 VPS Panel v3.0 — Server Setup Script (Ubuntu 24.04+)
 
 Interactive script to install and configure all dependencies:
-  - Apache2, vsftpd, PostgreSQL, PHP, phppgadmin
+6:   - Apache2, vsftpd, PostgreSQL, PHP, pgAdmin 4
   - Create PostgreSQL panel database and user
   - Create PostgreSQL panel admin user with privileges
   - Configure vsftpd for local users with chroot
@@ -109,14 +109,15 @@ def main():
         'php-gd',
         'php-json',
         'php-curl',
-        'phppgadmin',
         'python3-pip',
         'python3-venv',
         'python3-dev',
         'certbot',
         'python3-certbot-apache',
         'libpq-dev',
-        'build-essential'
+        'build-essential',
+        'curl',
+        'gpg'
     ])
     print("  ✅ System packages installed.")
 
@@ -262,7 +263,7 @@ DB_PASSWORD_ENCRYPTION_KEY={fernet_key}
 
 WEB_ROOT=/var/www
 BASE_URL=http://{server_ip}:8800
-PHPPGADMIN_URL=http://{server_ip}/phppgadmin
+PGADMIN_URL=http://{server_ip}/pgadmin4
 LOG_LEVEL=INFO
 LOG_FILE=/var/log/panel/panel.log
 PANEL_NAME=VPS Panel
@@ -392,35 +393,34 @@ except Exception as e:
         f.write(letsencrypt_conf)
     run(["a2enconf", "letsencrypt"], check=False)
 
-   # Ensure Config for phppgadmin is available (if present)
-    if os.path.exists('/etc/phppgadmin/apache.conf'):
-        # Patch Require local in the source file
-        run(["sed", "-i", "s/Require local/Require all granted/g", "/etc/phppgadmin/apache.conf"], check=False)
-        # Also patch the symlinked copy in conf-available if it exists separately
-        if os.path.exists('/etc/apache2/conf-available/phppgadmin.conf'):
-            run(["sed", "-i", "s/Require local/Require all granted/g", "/etc/apache2/conf-available/phppgadmin.conf"], check=False)
-        else:
-            # Write an explicit override conf that always allows access
-            phppgadmin_conf = """Alias /phppgadmin /usr/share/phppgadmin
+    # ── Step 8: Install and Configure pgAdmin 4 ──
+    print("\n[8/7] Installing pgAdmin 4...")
+    
+    # Add pgAdmin 4 repository
+    try:
+        run(["curl", "-fsS", "https://www.pgadmin.org/static/packages_pgadmin_org.pub", "-o", "pgadmin.pub"], check=True)
+        run(["gpg", "--dearmor", "-o", "/usr/share/keyrings/packages-pgadmin-org.gpg", "pgadmin.pub"], check=True)
+        os.remove("pgadmin.pub")
+        
+        distro = subprocess.run(["lsb_release", "-cs"], capture_output=True, text=True).stdout.strip()
+        with open("/etc/apt/sources.list.d/pgadmin4.list", "w") as f:
+            f.write(f"deb [signed-by=/usr/share/keyrings/packages-pgadmin-org.gpg] https://ftp.postgresql.org/pub/pgadmin/pgadmin4/apt/{distro} pgadmin4 main\n")
+        
+        run(["apt", "update", "-y"])
+        run(["apt", "install", "-y", "pgadmin4-web"])
+        
+        # Configure pgAdmin 4 non-interactively
+        # We use the panel admin email/pass. Since email is required, we'll use {web_admin_user}@localhost
+        pgadmin_email = f"{web_admin_user}@localhost"
+        os.environ["PGADMIN_SETUP_EMAIL"] = pgadmin_email
+        os.environ["PGADMIN_SETUP_PASSWORD"] = web_admin_pass
+        
+        run(["/usr/pgadmin4/bin/setup-web.sh", "--yes"], check=False)
+        print(f"  ✅ pgAdmin 4 installed and configured (User: {pgadmin_email})")
+    except Exception as e:
+        print(f"  ❌ pgAdmin 4 installation failed: {e}")
 
-<Directory /usr/share/phppgadmin>
-    DirectoryIndex index.php
-    Options FollowSymLinks
-    AllowOverride None
-    Require all granted
-</Directory>
-"""
-            with open('/etc/apache2/conf-available/phppgadmin.conf', 'w') as f:
-                f.write(phppgadmin_conf)
-        run(["a2enconf", "phppgadmin"], check=False)
-
-    if os.path.exists('/etc/phppgadmin/config.inc.php'):
-        # Allow postgres superuser to login (extra_login_security blocks it by default)
-        run(["sed", "-i", "s/$conf\\['extra_login_security'\\] = true;/$conf\\['extra_login_security'\\] = false;/g", "/etc/phppgadmin/config.inc.php"], check=False)
-        # Only show databases owned by the logged-in user — enforces per-user isolation in phpPgAdmin
-        run(["sed", "-i", "s/$conf\\['owned_only'\\] = false;/$conf\\['owned_only'\\] = true;/g", "/etc/phppgadmin/config.inc.php"], check=False)
-
-    # Restart apache to apply phpPgAdmin global configuration and clear out old disabled sites.
+    # Restart apache to apply changes
     run(["systemctl", "restart", "apache2"], check=False)
 
 
@@ -748,7 +748,7 @@ WantedBy=multi-user.target
     print("=" * 60)
     print(f"""
   Panel URL:      http://{server_ip}:8800
-  phpPgAdmin:     http://{server_ip}/phppgadmin
+  pgAdmin 4:       http://{server_ip}/pgadmin4
   
   Default login:  {web_admin_user} / {web_admin_pass}
   

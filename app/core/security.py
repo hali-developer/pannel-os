@@ -56,7 +56,7 @@ def validate_db_name(name: str) -> tuple[bool, str]:
         return False, "Database name must start with a letter and contain only letters/numbers/underscores (max 64 chars)."
     # Forbid system databases
     forbidden = {'PostgreSQL', 'information_schema', 'performance_schema', 'sys',
-                 'phppgadmin', 'panel_db'}
+                 'pgadmin4', 'pgadmin', 'panel_db'}
     if name.lower() in forbidden:
         return False, f"Database name '{name}' is reserved."
     return True, ""

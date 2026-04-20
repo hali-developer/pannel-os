@@ -43,7 +43,7 @@ class BaseConfig:
 
     # Base URL of the server (used to build external links in templates)
     BASE_URL = os.environ.get('BASE_URL', 'http://localhost')
-    PHPPGADMIN_URL = os.environ.get('PHPPGADMIN_URL', f"{os.environ.get('BASE_URL', 'http://localhost')}/phppgadmin")
+    PGADMIN_URL = os.environ.get('PGADMIN_URL', f"{os.environ.get('BASE_URL', 'http://localhost')}/pgadmin4")
 
     # SSL (Let's Encrypt / Certbot)
     SSL_ADMIN_EMAIL = os.environ.get('SSL_ADMIN_EMAIL', 'hali35275@gmail.com')
