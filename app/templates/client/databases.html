@@ -1,239 +1,431 @@
 {% extends 'panel_layout.html' %}
 
 {% block title %}My Databases — VPS Panel{% endblock %}
-{% block page_title %}PostgreSQL Databases{% endblock %}
+{% block page_title %}Database Management{% endblock %}
 
 {% block content %}
-<!-- Top Stats Row -->
-<div class="row g-4 mb-4">
-    <div class="col-md-4">
-        <div class="panel-card p-4 d-flex align-items-center bg-dark-soft border-0">
-            <div class="rounded-circle bg-primary-soft p-3 me-3"><i class="bi bi-database text-primary h4 mb-0"></i></div>
-            <div>
-                <div class="h3 fw-bold text-white mb-0">{{ databases | length }}</div>
-                <div class="small text-secondary fw-bold text-uppercase tracking-wider">Active Databases</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="panel-card p-4 d-flex align-items-center bg-dark-soft border-0">
-            <div class="rounded-circle bg-purple-soft p-3 me-3"><i class="bi bi-person-lock text-purple h4 mb-0"></i></div>
-            <div>
-                <div class="h3 fw-bold text-white mb-0">{{ db_users | length }}</div>
-                <div class="small text-secondary fw-bold text-uppercase tracking-wider">Database Users</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <a href="{{ pgadmin_url }}" target="_blank" class="panel-card p-4 d-flex align-items-center justify-content-center bg-primary text-decoration-none hover-scale transition-all">
-            <i class="bi bi-box-arrow-up-right me-2 text-white h5 mb-0"></i>
-            <span class="h6 fw-bold text-white mb-0">Open pgAdmin</span>
-        </a>
+<!-- DMS Selector Tabs -->
+<div class="panel-card mb-4" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);">
+    <div class="card-header bg-transparent border-0 p-0">
+        <ul class="nav nav-tabs border-0 panel-tabs" id="dbTabs" role="tablist">
+            <li class="nav-item w-50" role="presentation">
+                <button class="nav-link active w-100 py-3" id="postgres-tab" data-bs-toggle="tab" data-bs-target="#postgres-pane" type="button" role="tab">
+                    <i class="bi bi-elephant me-2 h5 mb-0"></i> PostgreSQL Management
+                </button>
+            </li>
+            <li class="nav-item w-50" role="presentation">
+                <button class="nav-link w-100 py-3" id="mysql-tab" data-bs-toggle="tab" data-bs-target="#mysql-pane" type="button" role="tab">
+                    <i class="bi bi-database-check me-2 h5 mb-0"></i> MySQL Management
+                </button>
+            </li>
+        </ul>
     </div>
 </div>
 
-<div class="row g-4">
-    <!-- Left Column: Databases & Users -->
-    <div class="col-lg-7">
-        <!-- Databases Card -->
-        <div class="panel-card mb-4" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);">
-            <div class="card-header bg-transparent border-bottom border-white-10 py-3">
-                <h5 class="mb-0 text-white"><i class="bi bi-database me-2 text-primary"></i> My Databases</h5>
+<div class="tab-content" id="dbTabsContent">
+    <!-- PostgreSQL Management Silo -->
+    <div class="tab-pane fade show active" id="postgres-pane" role="tabpanel">
+        <div class="row g-4">
+             <!-- Stats & Quick Links -->
+            <div class="col-12">
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="panel-card p-3 bg-dark-soft border-0 d-flex align-items-center">
+                            <i class="bi bi-database text-primary h3 mb-0 me-3"></i>
+                            <div>
+                                <div class="h4 fw-bold text-white mb-0">{{ pg_dbs | length }}</div>
+                                <div class="small text-secondary fw-bold text-uppercase">Postgres DBs</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="panel-card p-3 bg-dark-soft border-0 d-flex align-items-center">
+                            <i class="bi bi-people text-purple h3 mb-0 me-3"></i>
+                            <div>
+                                <div class="h4 fw-bold text-white mb-0">{{ pg_users | length }}</div>
+                                <div class="small text-secondary fw-bold text-uppercase">Postgres Users</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <a href="{{ pgadmin_url }}" target="_blank" class="panel-card p-3 d-flex align-items-center justify-content-center bg-primary text-decoration-none hover-scale transition-all">
+                            <i class="bi bi-box-arrow-up-right me-2 text-white h5 mb-0"></i>
+                            <span class="h6 fw-bold text-white mb-0">Open pgAdmin</span>
+                        </a>
+                    </div>
+                </div>
             </div>
-            <div class="card-body p-4">
-                {% if databases %}
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0" style="color: var(--text-default);">
-                            <thead class="small text-secondary">
-                                <tr>
-                                    <th>DATABASE</th>
-                                    <th>OWNER</th>
-                                    <th>HOST</th>
-                                    <th class="text-end">ACTIONS</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for db in databases %}
-                                <tr>
-                                    <td><code class="text-primary fw-bold">{{ db.db_name }}</code></td>
-                                    <td><span class="small text-secondary">{{ db.db_user }}</span></td>
-                                    <td><span class="small text-secondary">{{ db.db_host }}</span></td>
-                                    <td class="text-end">
-                                        <form action="{{ url_for('database.client_delete_database', db_name=db.db_name) }}" method="POST">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger border-danger-20"
-                                                    data-confirm="Drop database '{{ db.db_name }}'? This is permanent!">
+
+            <!-- Databases List -->
+            <div class="col-lg-8">
+                <div class="panel-card h-100">
+                    <div class="card-header bg-transparent py-3 border-bottom border-white-10 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 text-white"><i class="bi bi-server me-2 text-primary"></i> PostgreSQL Databases</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        {% if pg_dbs %}
+                        <div class="table-responsive mb-4">
+                            <table class="table table-hover align-middle" style="color: var(--text-default);">
+                                <thead class="small text-secondary text-uppercase">
+                                    <tr>
+                                        <th>DB Name</th>
+                                        <th>Primary User</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for db in pg_dbs %}
+                                    <tr>
+                                        <td><code class="text-primary fw-bold">{{ db.db_name }}</code></td>
+                                        <td><span class="small text-secondary">{{ db.db_user }}</span></td>
+                                        <td class="text-end">
+                                            <form action="{{ url_for('database.client_delete_database', db_name=db.db_name) }}" method="POST" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger border-danger-20" data-confirm="Permanently drop Postgres DB '{{ db.db_name }}'?">
+                                                    <i class="bi bi-trash3"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-database opacity-10 display-3 mb-3 d-block"></i>
+                            <p class="text-secondary">No PostgreSQL databases yet.</p>
+                        </div>
+                        {% endif %}
+
+                        <hr class="my-4 border-white-10">
+                        
+                        <h5 class="mb-3 text-white"><i class="bi bi-people me-2 text-purple"></i> Postgres Users</h5>
+                        {% if pg_users %}
+                            <div class="row g-3">
+                            {% for dbu in pg_users %}
+                                <div class="col-md-6">
+                                    <div class="p-3 rounded bg-dark-soft border border-white-5 d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold text-white small mb-1">{{ dbu.db_username }}</div>
+                                            <div class="small text-secondary" style="font-size: 0.7rem;">
+                                                {% set perms = dbu.permissions.all() %}
+                                                {% if perms %}
+                                                    {% for p in perms %}
+                                                    <span class="badge bg-primary-soft text-primary border border-primary-10 p-1 mb-1">{{ p.database.db_name }}</span>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <span class="opacity-50">No permissions.</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <form action="{{ url_for('db_users.client_delete_db_user', db_username=dbu.db_username) }}" method="POST">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger border-0 p-1" data-confirm="Delete Postgres user '{{ dbu.db_username }}'?">
                                                 <i class="bi bi-trash3"></i>
                                             </button>
                                         </form>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-secondary small">No PostgreSQL users created.</p>
+                        {% endif %}
                     </div>
-                {% else %}
-                    <div class="text-center py-4">
-                        <i class="bi bi-database opacity-25 h1 mb-3 text-secondary d-block"></i>
-                        <p class="text-secondary small">You haven't created any databases yet.</p>
-                    </div>
-                {% endif %}
+                </div>
             </div>
-        </div>
 
-        <!-- DB Users Card -->
-        <div class="panel-card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);">
-            <div class="card-header bg-transparent border-bottom border-white-10 py-3">
-                <h5 class="mb-0 text-white"><i class="bi bi-people me-2 text-purple"></i> DB Users</h5>
-            </div>
-            <div class="card-body p-4">
-                {% if db_users %}
-                    {% for dbu in db_users %}
-                    <div class="p-3 mb-3 rounded bg-dark-soft border border-white-5 d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="fw-bold text-white mb-1"><i class="bi bi-person-fill text-purple me-1"></i> {{ dbu.db_username }}</div>
-                            <div class="small text-secondary">
-                                {% set perms = dbu.permissions.all() %}
-                                {% if perms %}
-                                    <i class="bi bi-database-check me-1"></i> Access to: 
-                                    {% for p in perms %}
-                                    <span class="badge bg-primary-soft text-primary p-1 px-2 border border-primary-10">{{ p.database.db_name }}</span>
+            <!-- Create Forms -->
+            <div class="col-lg-4">
+                <div class="panel-card bg-dark-soft mb-4 border-primary-10">
+                    <div class="card-header py-3 border-bottom border-white-10">
+                        <h6 class="mb-0 text-white">New Postgres DB</h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <form action="{{ url_for('database.client_create_database') }}" method="POST">
+                            <input type="hidden" name="db_type" value="postgres">
+                            <div class="mb-3">
+                                <label class="form-label small text-secondary">NAME</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-dark border-secondary text-secondary small">{{ user.username }}_</span>
+                                    <input type="text" class="form-control bg-dark text-white border-secondary" name="db_name" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small text-secondary">OWNER USER</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-dark border-secondary text-secondary small">{{ user.username }}_</span>
+                                    <input type="text" class="form-control bg-dark text-white border-secondary" name="db_user" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small text-secondary">PASSWORD</label>
+                                <input type="password" class="form-control bg-dark text-white border-secondary" name="password" minlength="8" required>
+                            </div>
+                            <button type="submit" class="btn btn-panel btn-primary-panel w-100">Establish Database</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Grant Permissions -->
+                {% if pg_users and pg_dbs %}
+                <div class="panel-card bg-dark-soft mb-4">
+                    <div class="card-header py-3 border-bottom border-white-10">
+                        <h6 class="mb-0 text-white">Grant Postgres Access</h6>
+                    </div>
+                    <div class="card-body p-4 text-center">
+                        <form action="{{ url_for('db_users.client_grant_db_access') }}" method="POST">
+                            <div class="mb-3">
+                                <select class="form-select bg-dark text-white border-secondary mb-2" name="db_username" required>
+                                    <option value="" disabled selected>Select User</option>
+                                    {% for u in pg_users %}
+                                    <option value="{{ u.db_username }}">{{ u.db_username }}</option>
                                     {% endfor %}
-                                {% else %}
-                                    <span class="text-muted italic">No databases assigned</span>
-                                {% endif %}
+                                </select>
+                                <select class="form-select bg-dark text-white border-secondary" name="db_name" required>
+                                    <option value="" disabled selected>Select DB</option>
+                                    {% for d in pg_dbs %}
+                                    <option value="{{ d.db_name }}">{{ d.db_name }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
-                        </div>
-                        <div class="d-flex gap-2">
-                             <button type="button" class="btn btn-sm btn-outline-info border-info-20"
-                                    data-bs-toggle="modal" data-bs-target="#dbupwd_{{ loop.index }}" title="Change Password">
-                                <i class="bi bi-key"></i>
-                            </button>
-                            <form action="{{ url_for('db_users.client_delete_db_user', db_username=dbu.db_username) }}" method="POST">
-                                <button type="submit" class="btn btn-sm btn-outline-danger border-danger-20"
-                                        data-confirm="Delete user '{{ dbu.db_username }}'?">
-                                    <i class="bi bi-trash3"></i>
-                                </button>
-                            </form>
-                        </div>
+                            <button type="submit" class="btn btn-panel btn-outline-primary-panel w-100">Grant Permission</button>
+                        </form>
                     </div>
-
-                    <!-- Password Modal -->
-                    <div class="modal fade" id="dbupwd_{{ loop.index }}" tabindex="-1">
-                        <div class="modal-dialog modal-sm">
-                            <div class="modal-content bg-dark border border-white-10">
-                                <form action="{{ url_for('db_users.client_update_db_user_password', db_username=dbu.db_username) }}" method="POST">
-                                    <div class="modal-header border-white-10">
-                                        <h6 class="modal-title text-white">New Password for {{ dbu.db_username }}</h6>
-                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <input type="password" class="form-control bg-dark text-white border-secondary" name="password" 
-                                               placeholder="Min 8 chars" required minlength="8">
-                                    </div>
-                                    <div class="modal-footer border-white-10">
-                                        <button type="submit" class="btn btn-panel btn-success-panel btn-sm-panel w-100">Update</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <p class="text-center text-secondary small py-4">No custom database users created.</p>
+                </div>
                 {% endif %}
+
+                <!-- Create Extra User -->
+                <div class="panel-card bg-dark-soft border-purple-10">
+                    <div class="card-header py-3 border-bottom border-white-10">
+                        <h6 class="mb-0 text-white">Add Extra Postgres User</h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <form action="{{ url_for('db_users.client_create_db_user') }}" method="POST">
+                            <input type="hidden" name="db_type" value="postgres">
+                            <div class="mb-3">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-dark border-secondary text-secondary small">{{ user.username }}_</span>
+                                    <input type="text" class="form-control bg-dark text-white border-secondary" name="db_username" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <input type="password" class="form-control bg-dark text-white border-secondary" name="password" minlength="8" required placeholder="User Password">
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-outline-purple w-100">Create Secondary User</button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Right Column: Forms & Help -->
-    <div class="col-lg-5">
-        <!-- Help Card -->
-        <div class="panel-card mb-4" style="background: linear-gradient(135deg, rgba(13, 110, 253, 0.1), rgba(13, 202, 240, 0.05)); border: 1px solid rgba(13, 110, 253, 0.2);">
-            <div class="card-body p-4">
-                <h6 class="text-white mb-3"><i class="bi bi-lightning-charge me-2 text-primary"></i> Internal Connection</h6>
-                <p class="small text-secondary mb-3">
-                    Use these details inside your scripts (PHP, Python, etc.) running on this server.
-                </p>
-                <div class="bg-dark rounded p-3 mb-2 border border-secondary border-opacity-25">
-                    <div class="small text-secondary text-uppercase mb-1 tracking-wider">Database Host</div>
-                    <code class="text-primary fw-bold h6">localhost</code>
-                </div>
-                <div class="bg-dark rounded p-3 border border-secondary border-opacity-25">
-                    <div class="small text-secondary text-uppercase mb-1 tracking-wider">Default Port</div>
-                    <code class="text-primary fw-bold h6">5432</code>
-                </div>
-            </div>
-        </div>
-
-        <!-- Create DB Form -->
-        <div class="panel-card mb-4" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);">
-            <div class="card-header bg-transparent border-bottom border-white-10 py-3">
-                <h5 class="mb-0 text-white"><i class="bi bi-plus-lg me-2 text-primary"></i> Create DB</h5>
-            </div>
-            <div class="card-body p-4">
-                <form action="{{ url_for('database.client_create_database') }}" method="POST">
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary">DATABASE NAME</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-dark border-secondary text-secondary small">{{ user.username }}_</span>
-                            <input type="text" class="form-control bg-dark text-white border-secondary" name="db_name" required>
+    <!-- MySQL Management Silo -->
+    <div class="tab-pane fade" id="mysql-pane" role="tabpanel">
+        <div class="row g-4">
+             <!-- Stats & Quick Links -->
+            <div class="col-12">
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="panel-card p-3 bg-dark-soft border-0 d-flex align-items-center" style="border-left: 3px solid #ff9900 !important;">
+                            <i class="bi bi-database-check text-warning h3 mb-0 me-3"></i>
+                            <div>
+                                <div class="h4 fw-bold text-white mb-0">{{ ms_dbs | length }}</div>
+                                <div class="small text-secondary fw-bold text-uppercase">MySQL DBs</div>
+                            </div>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary">DB USERNAME</label>
-                        <div class="input-group">
-                            <span class="input-group-text bg-dark border-secondary text-secondary small">{{ user.username }}_</span>
-                            <input type="text" class="form-control bg-dark text-white border-secondary" name="db_user" required>
+                    <div class="col-md-4">
+                        <div class="panel-card p-3 bg-dark-soft border-0 d-flex align-items-center">
+                            <i class="bi bi-people text-info h3 mb-0 me-3"></i>
+                            <div>
+                                <div class="h4 fw-bold text-white mb-0">{{ ms_users | length }}</div>
+                                <div class="small text-secondary fw-bold text-uppercase">MySQL Users</div>
+                            </div>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary">PASSWORD</label>
-                        <input type="password" class="form-control bg-dark text-white border-secondary" name="password" minlength="8" required>
+                    <div class="col-md-4">
+                        <a href="{{ phpmyadmin_url }}" target="_blank" class="panel-card p-3 d-flex align-items-center justify-content-center text-decoration-none hover-scale transition-all" style="background-color: #ff9900 !important;">
+                            <i class="bi bi-box-arrow-up-right me-2 text-white h5 mb-0"></i>
+                            <span class="h6 fw-bold text-white mb-0">Open phpMyAdmin</span>
+                        </a>
                     </div>
-                    <button type="submit" class="btn btn-panel btn-primary-panel w-100">Provision Database</button>
-                </form>
+                </div>
             </div>
-        </div>
 
-        <!-- Grant Access Form -->
-        {% if db_users and databases %}
-        <div class="panel-card" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1);">
-            <div class="card-header bg-transparent border-bottom border-white-10 py-3">
-                <h5 class="mb-0 text-white"><i class="bi bi-shield-check me-2 text-success"></i> Grant Permissions</h5>
-            </div>
-            <div class="card-body p-4">
-                <form action="{{ url_for('db_users.client_grant_db_access') }}" method="POST">
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary">SELECT USER</label>
-                        <select class="form-select bg-dark text-white border-secondary" name="db_username" required>
-                            {% for dbu in db_users %}
-                            <option value="{{ dbu.db_username }}">{{ dbu.db_username }}</option>
-                            {% endfor %}
-                        </select>
+            <!-- Databases List -->
+            <div class="col-lg-8">
+                <div class="panel-card h-100">
+                    <div class="card-header bg-transparent py-3 border-bottom border-white-10">
+                        <h5 class="mb-0 text-white"><i class="bi bi-server me-2 text-warning"></i> MySQL Databases</h5>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label small text-secondary">SELECT DATABASE</label>
-                        <select class="form-select bg-dark text-white border-secondary" name="db_name" required>
-                            {% for db in databases %}
-                            <option value="{{ db.db_name }}">{{ db.db_name }}</option>
+                    <div class="card-body p-4">
+                        {% if ms_dbs %}
+                        <div class="table-responsive mb-4">
+                            <table class="table table-hover align-middle" style="color: var(--text-default);">
+                                <thead class="small text-secondary text-uppercase">
+                                    <tr>
+                                        <th>DB Name</th>
+                                        <th>Primary User</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for db in ms_dbs %}
+                                    <tr>
+                                        <td><code class="text-warning fw-bold">{{ db.db_name }}</code></td>
+                                        <td><span class="small text-secondary">{{ db.db_user }}</span></td>
+                                        <td class="text-end">
+                                            <form action="{{ url_for('database.client_delete_database', db_name=db.db_name) }}" method="POST" class="d-inline">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger border-danger-20" data-confirm="Permanently drop MySQL DB '{{ db.db_name }}'?">
+                                                    <i class="bi bi-trash3"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-database opacity-10 display-3 mb-3 d-block"></i>
+                            <p class="text-secondary">No MySQL databases yet.</p>
+                        </div>
+                        {% endif %}
+
+                        <hr class="my-4 border-white-10">
+                        
+                        <h5 class="mb-3 text-white"><i class="bi bi-people me-2 text-info"></i> MySQL Users</h5>
+                        {% if ms_users %}
+                            <div class="row g-3">
+                            {% for dbu in ms_users %}
+                                <div class="col-md-6">
+                                    <div class="p-3 rounded bg-dark-soft border border-white-5 d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold text-white small mb-1">{{ dbu.db_username }}</div>
+                                            <div class="small text-secondary" style="font-size: 0.7rem;">
+                                                {% set perms = dbu.permissions.all() %}
+                                                {% if perms %}
+                                                    {% for p in perms %}
+                                                    <span class="badge text-warning border border-warning-10 p-1 mb-1" style="background: rgba(255,153,0,0.1);">{{ p.database.db_name }}</span>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <span class="opacity-50">No permissions.</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <form action="{{ url_for('db_users.client_delete_db_user', db_username=dbu.db_username) }}" method="POST">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger border-0 p-1" data-confirm="Delete MySQL user '{{ dbu.db_username }}'?">
+                                                <i class="bi bi-trash3"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
                             {% endfor %}
-                        </select>
+                            </div>
+                        {% else %}
+                            <p class="text-secondary small">No MySQL users created.</p>
+                        {% endif %}
                     </div>
-                    <button type="submit" class="btn btn-panel btn-success-panel w-100">Grant Access</button>
-                </form>
+                </div>
             </div>
+
+            <!-- Create Forms -->
+            <div class="col-lg-4">
+                <div class="panel-card bg-dark-soft mb-4 border-warning-10">
+                    <div class="card-header py-3 border-bottom border-white-10">
+                        <h6 class="mb-0 text-white">New MySQL DB</h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <form action="{{ url_for('database.client_create_database') }}" method="POST">
+                            <input type="hidden" name="db_type" value="mysql">
+                            <div class="mb-3">
+                                <label class="form-label small text-secondary">NAME</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-dark border-secondary text-secondary small">{{ user.username }}_</span>
+                                    <input type="text" class="form-control bg-dark text-white border-secondary" name="db_name" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small text-secondary">OWNER USER</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-dark border-secondary text-secondary small">{{ user.username }}_</span>
+                                    <input type="text" class="form-control bg-dark text-white border-secondary" name="db_user" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small text-secondary">PASSWORD</label>
+                                <input type="password" class="form-control bg-dark text-white border-secondary" name="password" minlength="8" required>
+                            </div>
+                            <button type="submit" class="btn btn-panel w-100" style="background: #ff9900; color: white;">Establish Database</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Grant Permissions -->
+                {% if ms_users and ms_dbs %}
+                <div class="panel-card bg-dark-soft mb-4">
+                    <div class="card-header py-3 border-bottom border-white-10">
+                        <h6 class="mb-0 text-white">Grant MySQL Access</h6>
+                    </div>
+                    <div class="card-body p-4 text-center">
+                        <form action="{{ url_for('db_users.client_grant_db_access') }}" method="POST">
+                            <div class="mb-3">
+                                <select class="form-select bg-dark text-white border-secondary mb-2" name="db_username" required>
+                                    <option value="" disabled selected>Select User</option>
+                                    {% for u in ms_users %}
+                                    <option value="{{ u.db_username }}">{{ u.db_username }}</option>
+                                    {% endfor %}
+                                </select>
+                                <select class="form-select bg-dark text-white border-secondary" name="db_name" required>
+                                    <option value="" disabled selected>Select DB</option>
+                                    {% for d in ms_dbs %}
+                                    <option value="{{ d.db_name }}">{{ d.db_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-panel btn-outline-warning w-100" style="color: #ff9900; border-color: #ff9900;">Grant Permission</button>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Create Extra User -->
+                <div class="panel-card bg-dark-soft border-info-10">
+                    <div class="card-header py-3 border-bottom border-white-10">
+                        <h6 class="mb-0 text-white">Add Extra MySQL User</h6>
+                    </div>
+                    <div class="card-body p-4">
+                        <form action="{{ url_for('db_users.client_create_db_user') }}" method="POST">
+                            <input type="hidden" name="db_type" value="mysql">
+                            <div class="mb-3">
+                                <div class="input-group">
+                                    <span class="input-group-text bg-dark border-secondary text-secondary small">{{ user.username }}_</span>
+                                    <input type="text" class="form-control bg-dark text-white border-secondary" name="db_username" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <input type="password" class="form-control bg-dark text-white border-secondary" name="password" minlength="8" required placeholder="User Password">
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-outline-info w-100">Create Secondary User</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
         </div>
-        {% endif %}
     </div>
 </div>
 
 <style>
-    .bg-dark-soft { background: rgba(0, 0, 0, 0.2); }
-    .bg-primary-soft { background: rgba(13, 110, 253, 0.1); }
-    .bg-purple-soft { background: rgba(168, 85, 247, 0.1); }
-    .text-purple { color: #a855f7; }
-    .border-white-5 { border-color: rgba(255, 255, 255, 0.05) !important; }
-    .border-white-10 { border-color: rgba(255, 255, 255, 0.1) !important; }
-    .border-primary-10 { border-color: rgba(13, 110, 253, 0.1) !important; }
+    .panel-tabs .nav-link { 
+        color: var(--text-secondary); border: none; font-weight: 700; border-bottom: 3px solid transparent; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        text-transform: uppercase; letter-spacing: 1px; font-size: 0.85rem;
+    }
+    .panel-tabs .nav-link.active { background: rgba(255, 255, 255, 0.05); color: var(--text-white); border-bottom: 3px solid var(--accent-primary); }
+    #postgres-tab.active { border-bottom-color: #0d6efd; }
+    #mysql-tab.active { border-bottom-color: #ff9900; }
+    .panel-tabs .nav-link:hover:not(.active) { color: white; background: rgba(255,255,255,0.03); }
+    .bg-dark-soft { background: rgba(0, 0, 0, 0.3) !important; border: 1px solid rgba(255,255,255,0.05); }
 </style>
 {% endblock %}

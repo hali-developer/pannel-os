@@ -142,13 +142,14 @@ def client_create_db_user():
 
     db_username = request.form.get('db_username', '').strip()
     password = request.form.get('password', '')
+    db_type = request.form.get('db_type', 'postgres').strip()
 
     # Enforce username prefix for client isolation
     prefix = f"{user.username}_"
     if not db_username.startswith(prefix):
         db_username = prefix + db_username
 
-    ok, msg = dbuser_svc.create_db_user(user_id, db_username, password)
+    ok, msg = dbuser_svc.create_db_user(user_id, db_username, password, db_type)
     flash(msg, 'success' if ok else 'danger')
     return redirect(url_for('users.client_dashboard'))
 

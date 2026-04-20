@@ -18,6 +18,8 @@ from app.models.db_user_permission import DbUserPermission
 from app.models.database import ClientDatabase
 from app.models.user import User
 from app.services.postgresql_service import PostgreSQLService
+from app.services.mysql_service import MySQLService
+from app.core.pgadmin_sync import sync_user_to_pgadmin
 
 logger = logging.getLogger(__name__)
 
@@ -53,9 +55,9 @@ def _decrypt_password(encrypted: str) -> str:
 # DB USER CRUD
 # ════════════════════════════════════════
 
-def create_db_user(owner_user_id: int, db_username: str, password: str) -> tuple[bool, str]:
+def create_db_user(owner_user_id: int, db_username: str, password: str, db_type: str = 'postgres') -> tuple[bool, str]:
     """
-    Create a PostgreSQL database user with a unique prefixed name.
+    Create a database user with a unique prefixed name.
     """
     from app.core.utils import generate_prefixed_name
     
@@ -70,10 +72,16 @@ def create_db_user(owner_user_id: int, db_username: str, password: str) -> tuple
     if existing:
         return False, f"DB username '{db_username}' already exists."
 
-    # Create on PostgreSQL
-    ok, msg = PostgreSQLService.create_user(db_username, password)
+    # Create on selected engine
+    if db_type == 'mysql':
+        ok, msg = MySQLService.create_user(db_username, password)
+    else:
+        ok, msg = PostgreSQLService.create_user(db_username, password)
+        if ok:
+            sync_user_to_pgadmin(db_username, password)
+            
     if not ok:
-        return False, f"PostgreSQL user creation failed: {msg}"
+        return False, f"{db_type.capitalize()} user creation failed: {msg}"
 
     # Record in panel DB
     try:
@@ -84,6 +92,7 @@ def create_db_user(owner_user_id: int, db_username: str, password: str) -> tuple
 
     record = DbUser(
         db_username=db_username,
+        db_type=db_type,
         db_password_encrypted=encrypted_pwd,
         owner_user_id=owner_user_id,
         db_host='localhost',
@@ -105,13 +114,15 @@ def delete_db_user(db_username: str) -> tuple[bool, str]:
     if not record:
         return False, f"DB user '{db_username}' not found."
 
-    # Revoke all privileges first
-    PostgreSQLService.revoke_all_user_privileges(db_username)
+    # Drop from engine
+    if record.db_type == 'mysql':
+        ok, msg = MySQLService.drop_user(db_username) 
+    else:
+        PostgreSQLService.revoke_all_user_privileges(db_username)
+        ok, msg = PostgreSQLService.drop_user(db_username)
 
-    # Drop from PostgreSQL
-    ok, msg = PostgreSQLService.drop_user(db_username)
     if not ok:
-        logger.warning(f"PostgreSQL drop user warning for {db_username}: {msg}")
+        logger.warning(f"{record.db_type.capitalize()} drop user warning for {db_username}: {msg}")
 
     # Remove from panel DB (cascades to permissions)
     try:
@@ -130,10 +141,16 @@ def update_db_user_password(db_username: str, new_password: str) -> tuple[bool, 
     if not record:
         return False, f"DB user '{db_username}' not found."
 
-    # Update on PostgreSQL
-    ok, msg = PostgreSQLService.update_user_password(db_username, new_password)
+    # Update on engine
+    if record.db_type == 'mysql':
+        ok, msg = MySQLService.update_user_password(db_username, new_password)
+    else:
+        ok, msg = PostgreSQLService.update_user_password(db_username, new_password)
+        if ok:
+            sync_user_to_pgadmin(db_username, new_password)
+            
     if not ok:
-        return False, f"PostgreSQL password update failed: {msg}"
+        return False, f"{record.db_type.capitalize()} password update failed: {msg}"
 
     # Update encrypted password in panel DB
     try:
@@ -174,10 +191,18 @@ def grant_db_access(db_username: str, db_name: str) -> tuple[bool, str]:
     if existing:
         return False, f"'{db_username}' already has access to '{db_name}'."
 
-    # Grant on PostgreSQL
-    ok, msg = PostgreSQLService.grant_privileges(db_name, db_username)
+    # ENFORCE ENGINE ISOLATION
+    if db_user_record.db_type != db_record.db_type:
+        return False, f"Engine mismatch: Cannot grant {db_user_record.db_type} user access to {db_record.db_type} database."
+
+    # Grant on engine
+    if db_record.db_type == 'mysql':
+        ok, msg = MySQLService.grant_privileges(db_name, db_username)
+    else:
+        ok, msg = PostgreSQLService.grant_privileges(db_name, db_username)
+        
     if not ok:
-        return False, f"PostgreSQL GRANT failed: {msg}"
+        return False, f"{db_record.db_type.capitalize()} GRANT failed: {msg}"
 
     # Record permission
     perm = DbUserPermission(
@@ -212,10 +237,14 @@ def revoke_db_access(db_username: str, db_name: str) -> tuple[bool, str]:
     if not perm:
         return False, f"'{db_username}' does not have access to '{db_name}'."
 
-    # Revoke on PostgreSQL
-    ok, msg = PostgreSQLService.revoke_privileges(db_name, db_username)
+    # Revoke on engine
+    if db_record.db_type == 'mysql':
+        ok, msg = MySQLService.revoke_privileges(db_name, db_username)
+    else:
+        ok, msg = PostgreSQLService.revoke_privileges(db_name, db_username)
+        
     if not ok:
-        logger.warning(f"PostgreSQL REVOKE warning: {msg}")
+        logger.warning(f"{db_record.db_type.capitalize()} REVOKE warning: {msg}")
 
     # Remove permission record
     try:

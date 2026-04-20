@@ -10,11 +10,13 @@ from app.models.database import ClientDatabase
 from app.models.db_user_permission import DbUserPermission
 from app.models.user import User
 from app.services.postgresql_service import PostgreSQLService
+from app.services.mysql_service import MySQLService
+from app.core.pgadmin_sync import sync_user_to_pgadmin
 
 logger = logging.getLogger(__name__)
 
 
-def create_database(user_id: int, db_name: str, db_user: str, password: str) -> tuple[bool, str]:
+def create_database(user_id: int, db_name: str, db_user: str, password: str, db_type: str = 'postgres') -> tuple[bool, str]:
     """
     Create a client MySQL database with unique prefixed names.
     """
@@ -33,15 +35,23 @@ def create_database(user_id: int, db_name: str, db_user: str, password: str) -> 
     if existing:
         return False, f"Database '{db_name}' already exists."
 
-    # Provision on PostgreSQL
-    ok, msg = PostgreSQLService.provision_database(db_name, db_user, password)
+    # Provision on selected engine
+    if db_type == 'mysql':
+        ok, msg = MySQLService.provision_database(db_name, db_user, password)
+    else:
+        ok, msg = PostgreSQLService.provision_database(db_name, db_user, password)
+        # Sync to pgAdmin
+        if ok:
+            sync_user_to_pgadmin(db_user, password)
+            
     if not ok:
-        return False, f"PostgreSQL provisioning failed: {msg}"
+        return False, f"{db_type.capitalize()} provisioning failed: {msg}"
 
     # Record in panel DB
     record = ClientDatabase(
         user_id=user_id,
         db_name=db_name,
+        db_type=db_type,
         db_user=db_user,
         db_host='localhost',
     )
@@ -52,8 +62,11 @@ def create_database(user_id: int, db_name: str, db_user: str, password: str) -> 
         return True, f"Database '{db_name}' created with user '{db_user}'."
     except Exception as e:
         db.session.rollback()
-        # Rollback PostgreSQL provisioning
-        PostgreSQLService.deprovision_database(db_name, db_user)
+        # Rollback provisioning
+        if db_type == 'mysql':
+            MySQLService.deprovision_database(db_name, db_user)
+        else:
+            PostgreSQLService.deprovision_database(db_name, db_user)
         return False, f"Database error: {str(e)}"
 
 
@@ -69,15 +82,22 @@ def delete_database(db_name: str) -> tuple[bool, str]:
     permissions = DbUserPermission.query.filter_by(db_id=record.id).all()
     for perm in permissions:
         try:
-            PostgreSQLService.revoke_privileges(db_name, perm.db_user.db_username)
+            if record.db_type == 'mysql':
+                MySQLService.revoke_privileges(db_name, perm.db_user.db_username)
+            else:
+                PostgreSQLService.revoke_privileges(db_name, perm.db_user.db_username)
         except Exception:
             pass
         db.session.delete(perm)
 
-    # Deprovision from PostgreSQL
-    ok, msg = PostgreSQLService.deprovision_database(db_name, db_user)
+    # Deprovision from engine
+    if record.db_type == 'mysql':
+        ok, msg = MySQLService.deprovision_database(db_name, db_user)
+    else:
+        ok, msg = PostgreSQLService.deprovision_database(db_name, db_user)
+        
     if not ok:
-        logger.warning(f"PostgreSQL deprovision warning for {db_name}: {msg}")
+        logger.warning(f"{record.db_type.capitalize()} deprovision warning for {db_name}: {msg}")
 
     # Remove from panel DB
     try:
@@ -96,7 +116,14 @@ def update_database_password(db_name: str, new_password: str) -> tuple[bool, str
     if not record:
         return False, f"Database '{db_name}' not found."
 
-    ok, msg = PostgreSQLService.update_user_password(record.db_user, new_password)
+    if record.db_type == 'mysql':
+        ok, msg = MySQLService.update_user_password(record.db_user, new_password)
+    else:
+        ok, msg = PostgreSQLService.update_user_password(record.db_user, new_password)
+        # Sync to pgAdmin
+        if ok:
+            sync_user_to_pgadmin(record.db_user, new_password)
+
     if not ok:
         return False, f"Password update failed: {msg}"
 

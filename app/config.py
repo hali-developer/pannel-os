@@ -44,6 +44,7 @@ class BaseConfig:
     # Base URL of the server (used to build external links in templates)
     BASE_URL = os.environ.get('BASE_URL', 'http://localhost')
     PGADMIN_URL = os.environ.get('PGADMIN_URL', f"{os.environ.get('BASE_URL', 'http://localhost')}/pgadmin4")
+    PHPMYADMIN_URL = os.environ.get('PHPMYADMIN_URL', f"{os.environ.get('BASE_URL', 'http://localhost')}/phpmyadmin")
 
     # SSL (Let's Encrypt / Certbot)
     SSL_ADMIN_EMAIL = os.environ.get('SSL_ADMIN_EMAIL', 'hali35275@gmail.com')
@@ -53,6 +54,16 @@ class BaseConfig:
     POSTGRESQL_PORT = int(os.environ.get('POSTGRESQL_PORT', 5432))
     POSTGRESQL_ADMIN_USER = os.environ.get('POSTGRESQL_ADMIN_USER', 'postgres')
     POSTGRESQL_ADMIN_PASSWORD = os.environ.get('POSTGRESQL_ADMIN_PASSWORD', 'StrongPostgresPass123!')
+
+    # MySQL (Client Databases)
+    MYSQL_HOST = os.environ.get('MYSQL_HOST', 'localhost')
+    MYSQL_PORT = int(os.environ.get('MYSQL_PORT', 3306))
+    MYSQL_ADMIN_USER = os.environ.get('MYSQL_ADMIN_USER', 'root')
+    MYSQL_ADMIN_PASSWORD = os.environ.get('MYSQL_ADMIN_PASSWORD', 'default_mysql_pass')
+
+    # pgAdmin Sync Configuration
+    PGADMIN_DB_PATH = os.environ.get('PGADMIN_DB_PATH', '/var/lib/pgadmin/pgadmin4.db')
+    PGADMIN_SECURITY_PASSWORD_SALT = os.environ.get('PGADMIN_SECURITY_PASSWORD_SALT', 'default-salt-to-change')
 
     # DB Password Encryption
     DB_PASSWORD_ENCRYPTION_KEY = os.environ.get('DB_PASSWORD_ENCRYPTION_KEY', None)

@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS client_databases (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     db_name VARCHAR(64) UNIQUE NOT NULL,
+    db_type VARCHAR(20) DEFAULT 'postgres' NOT NULL,
     db_user VARCHAR(32) NOT NULL,
     db_host VARCHAR(255) DEFAULT 'localhost' NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
@@ -65,6 +66,7 @@ CREATE INDEX IF NOT EXISTS idx_client_databases_db_name ON client_databases(db_n
 CREATE TABLE IF NOT EXISTS db_users (
     id SERIAL PRIMARY KEY,
     db_username VARCHAR(32) UNIQUE NOT NULL,
+    db_type VARCHAR(20) DEFAULT 'postgres' NOT NULL,
     db_password_encrypted VARCHAR(512) NOT NULL,
     owner_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     db_host VARCHAR(255) DEFAULT 'localhost' NOT NULL,

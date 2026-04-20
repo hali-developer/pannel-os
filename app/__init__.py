@@ -54,6 +54,7 @@ def _inject_template_globals(app):
         return {
             'base_url': app.config.get('BASE_URL', 'http://localhost'),
             'pgadmin_url': app.config.get('PGADMIN_URL', app.config.get('BASE_URL', 'http://localhost') + '/pgadmin4'),
+            'phpmyadmin_url': app.config.get('PHPMYADMIN_URL', app.config.get('BASE_URL', 'http://localhost') + '/phpmyadmin'),
             'panel_name': app.config.get('PANEL_NAME', 'VPS Panel'),
             'panel_version': app.config.get('PANEL_VERSION', '3.0.0'),
         }

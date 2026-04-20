@@ -42,12 +42,13 @@ def admin_create_database():
     db_name = request.form.get('db_name', '').strip()
     db_user = request.form.get('db_user', '').strip()
     password = request.form.get('password', '')
+    db_type = request.form.get('db_type', 'postgres').strip()
 
     if not user_id:
         flash('Please select a user.', 'danger')
         return redirect(url_for('database.admin_databases_page'))
 
-    ok, msg = db_svc.create_database(user_id, db_name, db_user, password)
+    ok, msg = db_svc.create_database(user_id, db_name, db_user, password, db_type)
     flash(msg, 'success' if ok else 'danger')
     return redirect(url_for('database.admin_databases_page'))
 
@@ -86,9 +87,19 @@ def client_databases_page():
     db_users = DbUser.query.filter_by(owner_user_id=user_id).all()
     user = get_user_by_id(user_id)
     
+    # Filter for spread layout
+    pg_dbs = [d for d in databases if d.db_type == 'postgres']
+    ms_dbs = [d for d in databases if d.db_type == 'mysql']
+    pg_users = [u for u in db_users if u.db_type == 'postgres']
+    ms_users = [u for u in db_users if u.db_type == 'mysql']
+    
     return render_template('client/databases.html', 
                            databases=databases, 
                            db_users=db_users,
+                           pg_dbs=pg_dbs,
+                           ms_dbs=ms_dbs,
+                           pg_users=pg_users,
+                           ms_users=ms_users,
                            user=user)
 
 
@@ -115,6 +126,7 @@ def client_create_database():
     db_name = request.form.get('db_name', '').strip()
     db_user = request.form.get('db_user', '').strip()
     password = request.form.get('password', '')
+    db_type = request.form.get('db_type', 'postgres').strip()
 
     # Enforce username prefix for client isolation
     prefix = f"{user.username}_"
@@ -123,7 +135,7 @@ def client_create_database():
     if not db_user.startswith(prefix):
         db_user = prefix + db_user
 
-    ok, msg = db_svc.create_database(user_id, db_name, db_user, password)
+    ok, msg = db_svc.create_database(user_id, db_name, db_user, password, db_type)
     flash(msg, 'success' if ok else 'danger')
     return redirect(url_for('users.client_dashboard'))
 
@@ -165,6 +177,7 @@ def api_create_database():
         data['db_name'].strip(),
         data['db_user'].strip(),
         data['password'],
+        data.get('db_type', 'postgres')
     )
     if ok:
         return jsonify({"message": msg}), 201

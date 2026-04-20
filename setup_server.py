@@ -3,7 +3,7 @@
 VPS Panel v3.0 — Server Setup Script (Ubuntu 24.04+)
 
 Interactive script to install and configure all dependencies:
-6:   - Apache2, vsftpd, PostgreSQL, PHP, pgAdmin 4
+6:   - Apache2, vsftpd, PostgreSQL, PHP, MySQL, pgAdmin 4, phpMyAdmin
   - Create PostgreSQL panel database and user
   - Create PostgreSQL panel admin user with privileges
   - Configure vsftpd for local users with chroot
@@ -109,6 +109,8 @@ def main():
         'php-gd',
         'php-json',
         'php-curl',
+        'mysql-server',
+        'php-mysql',
         'python3-pip',
         'python3-venv',
         'python3-dev',
@@ -117,9 +119,20 @@ def main():
         'libpq-dev',
         'build-essential',
         'curl',
-        'gpg'
+        'gpg',
+        'debconf-utils'
     ])
     print("  ✅ System packages installed.")
+
+    # ── Step 1.2: phpMyAdmin (Automatic) ──
+    print("\n[1.2/7] Installing phpMyAdmin...")
+    pma_pass = generate_secret(16)
+    # Set debconf for non-interactive install
+    subprocess.run(f"echo 'phpmyadmin phpmyadmin/dbconfig-install boolean true' | debconf-set-selections", shell=True)
+    subprocess.run(f"echo 'phpmyadmin phpmyadmin/app-password password {pma_pass}' | debconf-set-selections", shell=True)
+    subprocess.run(f"echo 'phpmyadmin phpmyadmin/reconfigure-webserver multiselect apache2' | debconf-set-selections", shell=True)
+    run(["apt", "install", "-y", "phpmyadmin"])
+    run(["a2enconf", "phpmyadmin"], check=False)
 
     # ── Panel Directory Configuration ──
     print("\n[1.5/7] Setting panel directory...")
@@ -180,6 +193,21 @@ def main():
             
     if not setup_failed:
         print("  ✅ PostgreSQL panel database and users configured.")
+
+    # ── Step 2.2: MySQL Setup ──
+    print("\n[2.2/7] Configuring MySQL...")
+    mysql_root_pass = generate_secret(16)
+    try:
+        # Secure MySQL installation (basic)
+        run(["mysql", "-e", f"ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '{mysql_root_pass}';"], check=False)
+        run(["mysql", "-u", "root", f"-p{mysql_root_pass}", "-e", "DELETE FROM mysql.user WHERE User='';"], check=False)
+        run(["mysql", "-u", "root", f"-p{mysql_root_pass}", "-e", "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"], check=False)
+        run(["mysql", "-u", "root", f"-p{mysql_root_pass}", "-e", "DROP DATABASE IF EXISTS test;"], check=False)
+        run(["mysql", "-u", "root", f"-p{mysql_root_pass}", "-e", "DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';"], check=False)
+        run(["mysql", "-u", "root", f"-p{mysql_root_pass}", "-e", "FLUSH PRIVILEGES;"], check=False)
+        print("  ✅ MySQL secured and root password set.")
+    except Exception as e:
+        print(f"  ❌ MySQL configuration failed: {e}")
 
     # ── Step 3: proftpd Configuration ──
     print("\n[3/7] Configuring proftpd...")
@@ -261,13 +289,19 @@ POSTGRESQL_ADMIN_PASSWORD={mysql_admin_pass}
 
 DB_PASSWORD_ENCRYPTION_KEY={fernet_key}
 
-WEB_ROOT=/var/www
 BASE_URL=http://{server_ip}:8800
+PANEL_URL=http://{server_ip}:8800
 PGADMIN_URL=http://{server_ip}/pgadmin4
+PHPMYADMIN_URL=http://{server_ip}/phpmyadmin
+
+MYSQL_ROOT_PASSWORD={mysql_root_pass}
 LOG_LEVEL=INFO
 LOG_FILE=/var/log/panel/panel.log
 PANEL_NAME=VPS Panel
 PANEL_VERSION=3.0.0
+
+# Fixed salt for pgAdmin automated sync (Security Warning: Change in prod)
+PGADMIN_SECURITY_PASSWORD_SALT={generate_secret(32)}
 
 # Initial Web Admin Credentials
 PANEL_ADMIN_USER={web_admin_user}
@@ -416,7 +450,15 @@ except Exception as e:
         os.environ["PGADMIN_SETUP_PASSWORD"] = web_admin_pass
         
         run(["/usr/pgadmin4/bin/setup-web.sh", "--yes"], check=False)
-        print(f"  ✅ pgAdmin 4 installed and configured (User: {pgadmin_email})")
+        
+        # Configure pgAdmin 4 for automated Sync Logic
+        # We set a fixed salt so we can pre-hash passwords for users
+        pgadmin_config_path = "/usr/pgadmin4/web/config_local.py"
+        with open(pgadmin_config_path, "a") as f:
+            f.write(f"\nSECURITY_PASSWORD_SALT = '{os.environ.get('PGADMIN_SECURITY_PASSWORD_SALT', 'default-salt-to-change')}'\n")
+            f.write("AUTHENTICATION_SOURCES = ['internal']\n")
+            
+        print(f"  ✅ pgAdmin 4 installed and configured for sync")
     except Exception as e:
         print(f"  ❌ pgAdmin 4 installation failed: {e}")
 
@@ -749,6 +791,7 @@ WantedBy=multi-user.target
     print(f"""
   Panel URL:      http://{server_ip}:8800
   pgAdmin 4:       http://{server_ip}/pgadmin4
+  phpMyAdmin:      http://{server_ip}/phpmyadmin
   
   Default login:  {web_admin_user} / {web_admin_pass}
   

@@ -13,6 +13,7 @@ class DbUser(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     db_username = db.Column(db.String(32), unique=True, nullable=False, index=True)
+    db_type = db.Column(db.String(20), default='postgres', nullable=False)  # 'postgres' or 'mysql'
     db_password_encrypted = db.Column(db.String(512), nullable=False)
     owner_user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     db_host = db.Column(db.String(255), default='localhost', nullable=False)

@@ -21,18 +21,24 @@
                             <option value="{{ u.id }}">{{ u.username }}</option>
                             {% endfor %}
                         </select>
+                    </div>                    <div class="mb-3">
+                        <label class="form-label text-secondary small">Database Engine</label>
+                        <select class="form-select bg-dark text-white border-secondary" name="db_type" required>
+                            <option value="postgres">PostgreSQL</option>
+                            <option value="mysql">MySQL</option>
+                        </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Database Name</label>
-                        <input type="text" class="form-control" name="db_name" placeholder="e.g. john_wordpress" required>
+                        <label class="form-label text-secondary small">Database Name</label>
+                        <input type="text" class="form-control bg-dark text-white border-secondary" name="db_name" placeholder="e.g. john_wordpress" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">DB Username</label>
-                        <input type="text" class="form-control" name="db_user" placeholder="e.g. john_wp_user" required>
+                        <label class="form-label text-secondary small">DB Username</label>
+                        <input type="text" class="form-control bg-dark text-white border-secondary" name="db_user" placeholder="e.g. john_wp_user" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">DB Password</label>
-                        <input type="password" class="form-control" name="password" placeholder="Min 8 characters" required minlength="8">
+                        <label class="form-label text-secondary small">DB Password</label>
+                        <input type="password" class="form-control bg-dark text-white border-secondary" name="password" placeholder="Min 8 characters" required minlength="8">
                     </div>
                     <button type="submit" class="btn-panel btn-success-panel w-100">
                         <i class="bi bi-plus-lg"></i> Provision Database
@@ -41,16 +47,23 @@
             </div>
         </div>
 
-        <!-- pgAdmin 4 Link -->
-        <div class="panel-card mt-3">
-            <div class="card-body" style="text-align:center;">
-                <i class="bi bi-box-arrow-up-right" style="font-size:1.5rem;color:var(--accent-amber);"></i>
-                <p style="margin:0.75rem 0 0.5rem;font-size:0.85rem;color:var(--text-secondary);">
-                    Access pgAdmin to manage PostgreSQL databases directly.
-                </p>
-                <a href="{{ pgadmin_url }}" target="_blank" class="btn-panel btn-ghost w-100">
-                    <i class="bi bi-database-gear"></i> Open pgAdmin
-                </a>
+        <!-- External Tools -->
+        <div class="row g-2 mt-2">
+            <div class="col-6">
+                <div class="panel-card p-3 text-center">
+                    <a href="{{ pgadmin_url }}" target="_blank" class="text-decoration-none">
+                        <i class="bi bi-elephant text-primary h4 d-block mb-1"></i>
+                        <span class="small fw-bold text-white">pgAdmin</span>
+                    </a>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="panel-card p-3 text-center">
+                    <a href="{{ phpmyadmin_url }}" target="_blank" class="text-decoration-none">
+                        <i class="bi bi-database-check text-warning h4 d-block mb-1"></i>
+                        <span class="small fw-bold text-white">phpMyAdmin</span>
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -58,44 +71,37 @@
     <!-- Databases Table -->
     <div class="col-xl-8">
         <div class="panel-card">
-            <div class="card-header">
-                <h5><i class="bi bi-database-fill"></i> Active Databases</h5>
-                <span class="badge-panel badge-active">{{ databases | length }} total</span>
+            <div class="card-header border-bottom border-white-10">
+                <h5 class="mb-0 text-white"><i class="bi bi-database-fill me-2 text-primary"></i> Active Databases</h5>
+                <span class="badge bg-primary-soft text-primary ms-auto">{{ databases | length }} total</span>
             </div>
-            <div class="card-body" style="padding:0;">
+            <div class="card-body p-0">
                 {% if databases %}
                 <div class="table-responsive">
-                    <table class="data-table">
+                    <table class="table table-hover align-middle mb-0" style="color: var(--text-default);">
                         <thead>
-                            <tr>
-                                <th>Database</th>
+                            <tr class="small text-secondary text-uppercase">
+                                <th class="ps-4">Database</th>
+                                <th>Type</th>
                                 <th>DB User</th>
                                 <th>Owner</th>
-                                <th>Granted Users</th>
                                 <th>Created</th>
-                                <th class="actions-cell">Actions</th>
+                                <th class="text-end pe-4">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for db in databases %}
                             <tr>
+                                <td class="ps-4">
+                                    <code class="text-primary fw-bold">{{ db.db_name }}</code>
+                                </td>
                                 <td>
-                                    <code style="color:var(--accent-green);background:var(--accent-green-soft);padding:0.15rem 0.5rem;border-radius:4px;font-size:0.8rem;">
-                                        {{ db.db_name }}
-                                    </code>
+                                    <span class="badge {% if db.db_type == 'mysql' %}bg-warning-soft text-warning{% else %}bg-primary-soft text-primary{% endif %} text-uppercase p-1 px-2" style="font-size: 0.65rem;">
+                                        {{ db.db_type }}
+                                    </span>
                                 </td>
                                 <td style="font-size:0.82rem;">{{ db.db_user }}</td>
                                 <td>{{ db.owner.username if db.owner else '—' }}</td>
-                                <td style="font-size:0.78rem;">
-                                    {% set granted = db.granted_users %}
-                                    {% if granted %}
-                                        {% for gu in granted %}
-                                        <span style="background:var(--accent-purple-soft);color:var(--accent-purple);padding:0.1rem 0.4rem;border-radius:3px;font-size:0.72rem;margin-right:0.2rem;">{{ gu }}</span>
-                                        {% endfor %}
-                                    {% else %}
-                                        <span style="color:var(--text-dim);">—</span>
-                                    {% endif %}
-                                </td>
                                 <td style="font-size:0.78rem;">{{ db.created_at.strftime('%b %d, %Y') if db.created_at else '—' }}</td>
                                 <td class="actions-cell">
                                     <div style="display:flex;gap:0.35rem;">
