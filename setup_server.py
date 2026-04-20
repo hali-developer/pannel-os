@@ -23,27 +23,7 @@ import string
 import shutil
 import tempfile
 import argparse
-import re
 import socket
-import contextlib
-
-@contextlib.contextmanager
-def mysql_config(user, password):
-    """Creates a temporary my.cnf for secure non-interactive access."""
-    cfg_content = f"""[client]
-user={user}
-password={password}
-host=localhost
-"""
-    fd, path = tempfile.mkstemp()
-    try:
-        with os.fdopen(fd, 'w') as f:
-            f.write(cfg_content)
-        os.chmod(path, 0o600)
-        yield path
-    finally:
-        if os.path.exists(path):
-            os.remove(path)
 
 
 def run(cmd, check=True):
@@ -268,17 +248,10 @@ def main():
         run(["chown", "-R", "www-data:www-data", panel_dir], check=False)
         print(f"  ✅ Panel installed to: {panel_dir}")
 
-    # ── Step 2: MySQL Setup (Panel & Admin) ──
-    print("\n[2/7] Configuring MySQL...")
-    
     mysql_cmds = f"""
--- Force mysql_native_password for root (best compatibility with Flask connectors)
-ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '{mysql_admin_pass}';
-
--- Create provisioning admin if different from root
-CREATE USER IF NOT EXISTS '{mysql_admin_user}'@'localhost' IDENTIFIED WITH mysql_native_password BY '{mysql_admin_pass}';
-ALTER USER '{mysql_admin_user}'@'localhost' IDENTIFIED WITH mysql_native_password BY '{mysql_admin_pass}';
-GRANT ALL PRIVILEGES ON *.* TO '{mysql_admin_user}'@'localhost' WITH GRANT OPTION;
+-- Revert root to auth_socket (Default Ubuntu security model for sudo access)
+-- This ensures 'sudo mysql' always works without a password prompt.
+ALTER USER 'root'@'localhost' IDENTIFIED WITH auth_socket;
 
 -- Create internal panel database and user
 CREATE DATABASE IF NOT EXISTS {panel_db} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -288,7 +261,7 @@ GRANT ALL PRIVILEGES ON {panel_db}.* TO '{panel_user}'@'localhost';
 
 FLUSH PRIVILEGES;
 """
-    # Use sudo to ensure we can connect via auth_socket initially
+    # Use sudo to connect via auth_socket
     try:
         proc = subprocess.run(['sudo', 'mysql', '-e', mysql_cmds], capture_output=True, text=True)
         if proc.returncode == 0:
@@ -461,28 +434,26 @@ PANEL_ADMIN_PASSWORD={web_admin_pass}
     schema_path = os.path.join(panel_dir, 'schema_mysql.sql')
     if os.path.exists(schema_path):
         print("  Loading MySQL schema...")
-        with mysql_config("root", mysql_admin_pass) as cfg:
-            # Use extra-file for secure access without password on CLI
-            run(["sudo", "mysql", f"--defaults-extra-file={cfg}", panel_db, "-e", f"source {schema_path}"], check=False)
+        # Use sudo socket-based access (no password needed for root)
+        run(["sudo", "mysql", panel_db, "-e", f"source {schema_path}"], check=False)
     else:
         # Fallback to python init
         run(["bash", "-c", f"cd {panel_dir} && {python_path} -c \"from app import create_app; create_app()\""])
 
-    # Grant privileges to the panel user
-    with mysql_config("root", mysql_admin_pass) as cfg:
-        mysql_grant = f"GRANT ALL PRIVILEGES ON {panel_db}.* TO '{panel_user}'@'localhost';"
-        run(["sudo", "mysql", f"--defaults-extra-file={cfg}", "-e", mysql_grant], check=False)
+    # Grant privileges to the panel user (redundant but safe)
+    mysql_grant = f"GRANT ALL PRIVILEGES ON {panel_db}.* TO '{panel_user}'@'localhost';"
+    run(["sudo", "mysql", "-e", mysql_grant], check=False)
 
     # ── Step 7.2: Connectivity Verification ──
     print(f"\n[7.2/7] Verifying database connectivity for {panel_user}...")
-    with mysql_config(panel_user, panel_pass) as cfg:
-        check_cmd = ["mysql", f"--defaults-extra-file={cfg}", "-e", "SELECT 1;"]
-        proc = subprocess.run(check_cmd, capture_output=True, text=True)
-        if proc.returncode == 0:
-            print(f"  ✅ SUCCESS: {panel_user} can connect to MySQL.")
-        else:
-            print(f"  ❌ FAILURE: {panel_user} connection test failed: {proc.stderr}")
-            print("  ⚠ The panel may fail to start. Check authentication plugins manually.")
+    # Use mysql CLI with user/pass to verify they are working
+    check_cmd = ["mysql", "-u", panel_user, f"-p{panel_pass}", "-e", "SELECT 1;"]
+    proc = subprocess.run(check_cmd, capture_output=True, text=True)
+    if proc.returncode == 0:
+        print(f"  ✅ SUCCESS: {panel_user} can connect to MySQL.")
+    else:
+        print(f"  ❌ FAILURE: {panel_user} connection test failed: {proc.stderr}")
+        print("  ⚠ The panel may fail to start. Check authentication plugins manually.")
 
     # Ensure Web Admin user is created correctly
     admin_setup_script = f"""
