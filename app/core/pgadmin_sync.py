@@ -26,7 +26,7 @@ def sync_user_to_pgadmin(db_username, db_password):
     Also adds the localhost server entry.
     """
     db_path = current_app.config.get('PGADMIN_DB_PATH', '/var/lib/pgadmin/pgadmin4.db')
-    salt = current_app.config.get('PGADMIN_SECURITY_PASSWORD_SALT', 'default-salt')
+    salt = current_app.config.get('PGADMIN_SECURITY_PASSWORD_SALT', 'default-salt-to-change')
     
     if not os.path.exists(db_path):
         current_app.logger.warning(f"pgAdmin database not found at {db_path}. Skipping sync.")
@@ -40,10 +40,10 @@ def sync_user_to_pgadmin(db_username, db_password):
         cursor = conn.cursor()
 
         # 1. Ensure user exists
-        cursor.execute("SELECT id FROM user WHERE username = ?", (email,))
-        user = cursor.fetchone()
+        cursor.execute("SELECT id, fs_uniquifier FROM user WHERE username = ?", (email,))
+        user_row = cursor.fetchone()
         
-        if not user:
+        if not user_row:
             uniquifier = uuid.uuid4().hex
             cursor.execute(
                 "INSERT INTO user (username, password, active, confirmed_at, fs_uniquifier) VALUES (?, ?, ?, datetime('now'), ?)",
@@ -51,8 +51,28 @@ def sync_user_to_pgadmin(db_username, db_password):
             )
             user_id = cursor.lastrowid
         else:
-            user_id = user[0]
-            cursor.execute("UPDATE user SET password = ? WHERE id = ?", (hashed_password, user_id))
+            user_id, existing_uniquifier = user_row
+            # Fix existing users who might be missing the uniquifier
+            uniquifier = existing_uniquifier if existing_uniquifier else uuid.uuid4().hex
+            cursor.execute(
+                "UPDATE user SET password = ?, fs_uniquifier = ? WHERE id = ?", 
+                (hashed_password, uniquifier, user_id)
+            )
+
+        # 2. Assign 'User' Role (pgAdmin 4 / Flask-Security requirement)
+        # Ensure the 'User' role exists
+        cursor.execute("SELECT id FROM role WHERE name = ?", ('User',))
+        role_row = cursor.fetchone()
+        if not role_row:
+            cursor.execute("INSERT INTO role (name, description) VALUES (?, ?)", ('User', 'Standard User Role'))
+            role_id = cursor.lastrowid
+        else:
+            role_id = role_row[0]
+        
+        # Link user to role if not already linked
+        cursor.execute("SELECT 1 FROM roles_users WHERE user_id = ? AND role_id = ?", (user_id, role_id))
+        if not cursor.fetchone():
+            cursor.execute("INSERT INTO roles_users (user_id, role_id) VALUES (?, ?)", (user_id, role_id))
 
         # 3. Add localhost server for this user
         # Check if server already exists for this user
