@@ -48,9 +48,9 @@
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <a href="{{ pgadmin_url }}" target="_blank" class="panel-card p-3 d-flex align-items-center justify-content-center bg-primary text-decoration-none hover-scale transition-all">
-                            <i class="bi bi-box-arrow-up-right me-2 text-white h5 mb-0"></i>
-                            <span class="h6 fw-bold text-white mb-0">Open pgAdmin</span>
+                        <a href="/adminer?pgsql=localhost" target="_blank" class="panel-card p-3 d-flex align-items-center justify-content-center bg-success text-decoration-none hover-scale transition-all">
+                            <i class="bi bi-database-fill-gear me-2 text-white h5 mb-0"></i>
+                            <span class="h6 fw-bold text-white mb-0">Open Adminer</span>
                         </a>
                     </div>
                 </div>
@@ -79,6 +79,10 @@
                                         <td><code class="text-primary fw-bold">{{ db.db_name }}</code></td>
                                         <td><span class="small text-secondary">{{ db.db_user }}</span></td>
                                         <td class="text-end">
+                                            <a href="/adminer?pgsql=localhost&username={{ db.db_user }}&db={{ db.db_name }}" target="_blank"
+                                               class="btn btn-sm btn-outline-success border-0 me-1" title="Manage in Adminer">
+                                                <i class="bi bi-database-fill-gear"></i>
+                                            </a>
                                             <form action="{{ url_for('database.client_delete_database', db_name=db.db_name) }}" method="POST" class="d-inline">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger border-danger-20" data-confirm="Permanently drop Postgres DB '{{ db.db_name }}'?">
                                                     <i class="bi bi-trash3"></i>
@@ -275,6 +279,10 @@
                                         <td><code class="text-warning fw-bold">{{ db.db_name }}</code></td>
                                         <td><span class="small text-secondary">{{ db.db_user }}</span></td>
                                         <td class="text-end">
+                                            <a href="/adminer?server=localhost&username={{ db.db_user }}&db={{ db.db_name }}" target="_blank"
+                                               class="btn btn-sm btn-outline-success border-0 me-1" title="Manage in Adminer">
+                                                <i class="bi bi-database-fill-gear"></i>
+                                            </a>
                                             <form action="{{ url_for('database.client_delete_database', db_name=db.db_name) }}" method="POST" class="d-inline">
                                                 <button type="submit" class="btn btn-sm btn-outline-danger border-danger-20" data-confirm="Permanently drop MySQL DB '{{ db.db_name }}'?">
                                                     <i class="bi bi-trash3"></i>

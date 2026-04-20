@@ -560,40 +560,28 @@ except Exception as e:
         f.write(letsencrypt_conf)
     run(["a2enconf", "letsencrypt"], check=False)
 
-    # ── Step 8: Install and Configure pgAdmin 4 ──
-    print("\n[8/7] Installing pgAdmin 4...")
-    
-    # Add pgAdmin 4 repository
+    # ── Step 8: Install Adminer (replaces pgAdmin — no sync required) ──
+    print("\n[8/7] Installing Adminer (lightweight DB manager for PostgreSQL & MySQL)...")
     try:
-        run(["curl", "-fsS", "https://www.pgadmin.org/static/packages_pgadmin_org.pub", "-o", "pgadmin.pub"], check=True)
-        run(["gpg", "--dearmor", "-o", "/usr/share/keyrings/packages-pgadmin-org.gpg", "pgadmin.pub"], check=True)
-        os.remove("pgadmin.pub")
+        run(["apt", "install", "-y", "adminer"])
+        run(["a2enconf", "adminer"], check=False)
         
-        distro = subprocess.run(["lsb_release", "-cs"], capture_output=True, text=True).stdout.strip()
-        with open("/etc/apt/sources.list.d/pgadmin4.list", "w") as f:
-            f.write(f"deb [signed-by=/usr/share/keyrings/packages-pgadmin-org.gpg] https://ftp.postgresql.org/pub/pgadmin/pgadmin4/apt/{distro} pgadmin4 main\n")
-        
-        run(["apt", "update", "-y"])
-        run(["apt", "install", "-y", "pgadmin4-web"])
-        
-        # Configure pgAdmin 4 non-interactively
-        # We use the panel admin email/pass. Since email is required, we'll use {web_admin_user}@localhost
-        pgadmin_email = f"{web_admin_user}@localhost"
-        os.environ["PGADMIN_SETUP_EMAIL"] = pgadmin_email
-        os.environ["PGADMIN_SETUP_PASSWORD"] = web_admin_pass
-        
-        run(["/usr/pgadmin4/bin/setup-web.sh", "--yes"], check=False)
-        
-        # Configure pgAdmin 4 for automated Sync Logic
-        # We set a fixed salt so we can pre-hash passwords for users
-        pgadmin_config_path = "/usr/pgadmin4/web/config_local.py"
-        with open(pgadmin_config_path, "a") as f:
-            f.write(f"\nSECURITY_PASSWORD_SALT = '{os.environ.get('PGADMIN_SECURITY_PASSWORD_SALT', 'default-salt-to-change')}'\n")
-            f.write("AUTHENTICATION_SOURCES = ['internal']\n")
-            
-        print(f"  ✅ pgAdmin 4 installed and configured for sync")
+        # Restrict Adminer to localhost or panel subnet for security
+        adminer_conf = """\
+Alias /adminer /usr/share/adminer/adminer
+
+<Directory /usr/share/adminer>
+    Options SymLinksIfOwnerMatch
+    DirectoryIndex index.php
+    Require all granted
+</Directory>
+"""
+        with open("/etc/apache2/conf-enabled/adminer.conf", "w") as f:
+            f.write(adminer_conf)
+
+        print("  ✅ Adminer installed — accessible at /adminer")
     except Exception as e:
-        print(f"  ❌ pgAdmin 4 installation failed: {e}")
+        print(f"  ❌ Adminer installation failed: {e}")
 
     # Restart apache to apply changes
     run(["systemctl", "restart", "apache2"], check=False)

@@ -51,9 +51,10 @@
         <div class="row g-2 mt-2">
             <div class="col-6">
                 <div class="panel-card p-3 text-center">
-                    <a href="{{ pgadmin_url }}" target="_blank" class="text-decoration-none">
-                        <i class="bi bi-elephant text-primary h4 d-block mb-1"></i>
-                        <span class="small fw-bold text-white">pgAdmin</span>
+                    <a href="/adminer" target="_blank" class="text-decoration-none">
+                        <i class="bi bi-database-fill-gear text-success h4 d-block mb-1"></i>
+                        <span class="small fw-bold text-white">Adminer</span>
+                        <div class="text-muted" style="font-size:0.65rem;">PostgreSQL &amp; MySQL</div>
                     </a>
                 </div>
             </div>
@@ -105,6 +106,18 @@
                                 <td style="font-size:0.78rem;">{{ db.created_at.strftime('%b %d, %Y') if db.created_at else '—' }}</td>
                                 <td class="actions-cell">
                                     <div style="display:flex;gap:0.35rem;">
+                                        <!-- Manage in Adminer -->
+                                        {% if db.db_type == 'postgres' %}
+                                        <a href="/adminer?pgsql=localhost&username={{ db.db_user }}&db={{ db.db_name }}" target="_blank"
+                                           class="btn-panel btn-ghost btn-sm-panel" title="Manage in Adminer">
+                                            <i class="bi bi-database-fill-gear"></i>
+                                        </a>
+                                        {% else %}
+                                        <a href="/adminer?server=localhost&username={{ db.db_user }}&db={{ db.db_name }}" target="_blank"
+                                           class="btn-panel btn-ghost btn-sm-panel" title="Manage in Adminer">
+                                            <i class="bi bi-database-fill-gear"></i>
+                                        </a>
+                                        {% endif %}
                                         <!-- Change Password -->
                                         <button type="button" class="btn-panel btn-ghost btn-sm-panel"
                                                 data-bs-toggle="modal" data-bs-target="#pwdModal_{{ loop.index }}" title="Change Password">
