@@ -249,8 +249,7 @@ def main():
         print(f"  ✅ Panel installed to: {panel_dir}")
 
     mysql_cmds = f"""
--- Revert root to auth_socket (Default Ubuntu security model for sudo access)
--- This ensures 'sudo mysql' always works without a password prompt.
+-- Ensure root uses auth_socket (Ubuntu default for sudo access)
 ALTER USER 'root'@'localhost' IDENTIFIED WITH auth_socket;
 
 -- Create internal panel database and user
@@ -258,6 +257,11 @@ CREATE DATABASE IF NOT EXISTS {panel_db} CHARACTER SET utf8mb4 COLLATE utf8mb4_u
 CREATE USER IF NOT EXISTS '{panel_user}'@'localhost' IDENTIFIED WITH mysql_native_password BY '{panel_pass}';
 ALTER USER '{panel_user}'@'localhost' IDENTIFIED WITH mysql_native_password BY '{panel_pass}';
 GRANT ALL PRIVILEGES ON {panel_db}.* TO '{panel_user}'@'localhost';
+
+-- Create dedicated provisioning admin for the application (to avoid root access issues)
+CREATE USER IF NOT EXISTS 'panel_admin'@'localhost' IDENTIFIED WITH mysql_native_password BY '{mysql_admin_pass}';
+ALTER USER 'panel_admin'@'localhost' IDENTIFIED WITH mysql_native_password BY '{mysql_admin_pass}';
+GRANT ALL PRIVILEGES ON *.* TO 'panel_admin'@'localhost' WITH GRANT OPTION;
 
 FLUSH PRIVILEGES;
 """
@@ -378,10 +382,10 @@ PHPMYADMIN_URL=http://{server_ip}/phpmyadmin
 
 MYSQL_HOST=localhost
 MYSQL_PORT=3306
-MYSQL_ADMIN_USER={mysql_admin_user}
+MYSQL_ROOT_PASSWORD={mysql_admin_pass}
+MYSQL_ADMIN_USER=panel_admin
 MYSQL_ADMIN_PASSWORD={mysql_admin_pass}
-
-LOG_LEVEL=INFO
+MYSQL_DB={panel_db}
 LOG_FILE=/var/log/panel/panel.log
 PANEL_NAME=VPS Panel
 PANEL_VERSION=3.0.0

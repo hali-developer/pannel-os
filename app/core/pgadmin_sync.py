@@ -2,6 +2,7 @@ import sqlite3
 import os
 import hashlib
 import binascii
+import uuid
 from flask import current_app
 
 def hash_pgadmin_password(password, salt):
@@ -38,9 +39,10 @@ def sync_user_to_pgadmin(db_username, db_password):
         user = cursor.fetchone()
         
         if not user:
+            uniquifier = uuid.uuid4().hex
             cursor.execute(
-                "INSERT INTO user (username, password, active, confirmed_at) VALUES (?, ?, ?, datetime('now'))",
-                (email, hashed_password, 1)
+                "INSERT INTO user (username, password, active, confirmed_at, fs_uniquifier) VALUES (?, ?, ?, datetime('now'), ?)",
+                (email, hashed_password, 1, uniquifier)
             )
             user_id = cursor.lastrowid
         else:
