@@ -197,7 +197,6 @@ class PostgreSQLService:
             return False, str(e)
         finally:
             conn.close()
-
         # Connect to the actual database to grant schema-level access (required on PostgreSQL 15+)
         conn2 = cls._get_admin_connection(database=db_name)
         try:

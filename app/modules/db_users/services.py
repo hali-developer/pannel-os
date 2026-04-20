@@ -104,7 +104,10 @@ def create_db_user(owner_user_id: int, db_username: str, password: str, db_type:
         return True, f"DB user '{db_username}' created."
     except Exception as e:
         db.session.rollback()
-        PostgreSQLService.drop_user(db_username)
+        if db_type == 'mysql':
+            MySQLService.drop_user(db_username)
+        else:
+            PostgreSQLService.drop_user(db_username)
         return False, f"Database error: {str(e)}"
 
 
