@@ -3,17 +3,22 @@ import os
 import hashlib
 import binascii
 import uuid
+import hmac
+import base64
 from flask import current_app
 
 def hash_pgadmin_password(password, salt):
     """
-    Generate a pbkdf2_sha512 hash compatible with flask-security-too (used by pgAdmin 4).
-    Note: Real implementation may vary slightly based on pgAdmin version.
+    Generate a hash compatible with flask-security-too (used by pgAdmin 4).
+    Flask-Security-Too HMACs the password using the security salt before hashing.
     """
-    # This is a simplified version. pgAdmin uses passlib's pbkdf2_sha512.
-    # In production, we'd ideally use passlib directly.
     from passlib.hash import pbkdf2_sha512
-    return pbkdf2_sha512.using(salt=salt.encode()).hash(password)
+    # 1. HMAC the password using the salt as the key
+    pw_hmac = hmac.new(salt.encode('utf-8'), password.encode('utf-8'), hashlib.sha512).digest()
+    # 2. Base64 encode the resulting digest
+    pw_b64 = base64.b64encode(pw_hmac).decode('utf-8')
+    # 3. Hash the resulting string using PBKDF2-SHA512
+    return pbkdf2_sha512.hash(pw_b64)
 
 def sync_user_to_pgadmin(db_username, db_password):
     """
