@@ -113,10 +113,6 @@ def client_add_domain():
         return redirect(url_for('auth.login_page'))
 
     domain_name = request.form.get('domain_name', '').strip().lower()
-    
-    prefix = f"{user.username}_"
-    if not domain_name.startswith(prefix):
-        domain_name = prefix + domain_name
 
     ok, msg = domain_svc.add_domain(user_id, domain_name)
     flash(msg, 'success' if ok else 'danger')
