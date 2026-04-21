@@ -146,7 +146,7 @@ def main():
         print("⚠  This script must be run as root (sudo).")
         sys.exit(1)
 
-    panel_dir = "/var/www/panel"
+    panel_dir = "/var/h-panel"
     env_path = os.path.join(panel_dir, '.env')
 
     # ── Handle --reset-mysql Flag ──
@@ -215,7 +215,7 @@ def main():
     # ── Panel Directory Configuration ──
     print("\n[1.5/7] Setting panel directory...")
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    panel_dir = "/var/www/panel"
+    panel_dir = "/var/h-panel"
 
     if os.path.abspath(current_dir) != os.path.abspath(panel_dir):
         print(f"  Copying panel files to {panel_dir}...")

@@ -27,10 +27,10 @@ def main():
         sys.exit(1)
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    panel_dir = "/var/www/panel"
+    panel_dir = "/var/h-panel"
 
     if os.path.abspath(current_dir) == os.path.abspath(panel_dir):
-        print("⚠  You are running this from /var/www/panel already.")
+        print("⚠  You are running this from /var/h-panel already.")
         print("   This script should be run from your standalone repo to synchronize over.")
         sys.exit(1)
 

@@ -50,7 +50,7 @@ sudo python3 setup_server.py
 *   **Environment & Secrets:** Generates secure, randomized salts and passwords, building your `.env` configuration file automatically. No manual credential writing is required.
 *   **Database Initializations:** Boots the root MySQL `panel_db` database, establishing the foundational schemas the web app needs to run.
 *   **Transfers Automation Scripts:** Moves the core networking shell scripts (`scripts/*.sh`) securely to `/usr/local/bin` and assigns `www-data` NOPASSWD sudo access exclusively over them.
-*   **Launches the App:** Migrates the application layer into `/var/www/panel` and registers `vps-panel.service` with `systemd` to keep the dashboard permanently online on Port 8800.
+*   **Launches the App:** Migrates the application layer into `/var/h-panel` and registers `vps-panel.service` with `systemd` to keep the dashboard permanently online on Port 8800.
 
 Upon completion, the terminal will print out your new Panel URL, your admin login credentials (save these!), and links to Adminer/phpMyAdmin/pgAdmin.
 
@@ -81,7 +81,7 @@ sudo python3 update_panel.py
 ```
 
 ### What `update_panel.py` does automatically behind the scenes:
-*   **Dependency Audits:** Checks if you've added new packages to `system_requirements.txt` or `requirements.txt` and securely installs them using `apt` and inside the `/var/www/panel/venv/` accordingly.
-*   **Code Synchronization:** Mirrors your new `app/` python models, CSS updates, and frontend HTML templates directly into `/var/www/panel` while rigidly ignoring and preserving the `.env` file and user data.
+*   **Dependency Audits:** Checks if you've added new packages to `system_requirements.txt` or `requirements.txt` and securely installs them using `apt` and inside the `/var/h-panel/venv/` accordingly.
+*   **Code Synchronization:** Mirrors your new `app/` python models, CSS updates, and frontend HTML templates directly into `/var/h-panel` while rigidly ignoring and preserving the `.env` file and user data.
 *   **Script Swapping:** Migrates any newly modified Bash shell orchestration logic (`add_domain.sh`, etc.) seamlessly over to `/usr/local/bin`.
 *   **Zero-Downtime Reload:** Issues `systemctl daemon-reload`, restarts the `apache2` web server, and bounces the `vps-panel` Gunicorn service natively, pushing your newest application code live instantly!
