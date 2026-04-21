@@ -23,9 +23,14 @@ database_bp = Blueprint('database', __name__)
 @admin_required_web
 def admin_databases_page():
     """Database management page."""
+    from flask import current_app
     databases = db_svc.get_all_databases()
     users = list_users()
-    return render_template('admin/databases.html', databases=databases, users=users)
+    return render_template('admin/databases.html',
+                           databases=databases,
+                           users=users,
+                           adminer_url=current_app.config.get('ADMINER_URL', '/adminer'),
+                           phpmyadmin_url=current_app.config.get('PHPMYADMIN_URL', '/phpmyadmin'))
 
 
 @database_bp.route('/admin/databases/create', methods=['POST'])
@@ -93,6 +98,7 @@ def client_databases_page():
     pg_users = [u for u in db_users if u.db_type == 'postgres']
     ms_users = [u for u in db_users if u.db_type == 'mysql']
     
+    from flask import current_app
     return render_template('client/databases.html', 
                            databases=databases, 
                            db_users=db_users,
@@ -100,7 +106,9 @@ def client_databases_page():
                            ms_dbs=ms_dbs,
                            pg_users=pg_users,
                            ms_users=ms_users,
-                           user=user)
+                           user=user,
+                           adminer_url=current_app.config.get('ADMINER_URL', '/adminer'),
+                           phpmyadmin_url=current_app.config.get('PHPMYADMIN_URL', '/phpmyadmin'))
 
 
 # ════════════════════════════════════════

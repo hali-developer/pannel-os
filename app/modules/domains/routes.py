@@ -84,8 +84,11 @@ def admin_revoke_ssl(domain_name):
 @client_required_web
 def client_domains_page():
     """Client domain management page."""
-    domains = domain_svc.get_domains_for_user(session['user_id'])
-    return render_template('client/domains.html', domains=domains)
+    user_id = session['user_id']
+    domains = domain_svc.get_domains_for_user(user_id)
+    from app.modules.users.services import get_user_by_id
+    user = get_user_by_id(user_id)
+    return render_template('client/domains.html', domains=domains, user=user)
 
 
 # ════════════════════════════════════════
@@ -102,8 +105,20 @@ def client_add_domain():
         flash(error, 'danger')
         return redirect(url_for('domains.client_domains_page'))
 
+    user_id = session['user_id']
+    from app.modules.users.services import get_user_by_id
+    user = get_user_by_id(user_id)
+    if not user:
+        flash('Session error. Please log in again.', 'danger')
+        return redirect(url_for('auth.login_page'))
+
     domain_name = request.form.get('domain_name', '').strip().lower()
-    ok, msg = domain_svc.add_domain(session['user_id'], domain_name)
+    
+    prefix = f"{user.username}_"
+    if not domain_name.startswith(prefix):
+        domain_name = prefix + domain_name
+
+    ok, msg = domain_svc.add_domain(user_id, domain_name)
     flash(msg, 'success' if ok else 'danger')
     return redirect(url_for('users.client_dashboard'))
 

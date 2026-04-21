@@ -43,7 +43,7 @@ class BaseConfig:
 
     # Base URL of the server (used to build external links in templates)
     BASE_URL = os.environ.get('BASE_URL', 'http://localhost')
-    PGADMIN_URL = os.environ.get('PGADMIN_URL', f"{os.environ.get('BASE_URL', 'http://localhost')}/pgadmin4")
+    ADMINER_URL = os.environ.get('ADMINER_URL', f"{os.environ.get('BASE_URL', 'http://localhost')}/adminer")
     PHPMYADMIN_URL = os.environ.get('PHPMYADMIN_URL', f"{os.environ.get('BASE_URL', 'http://localhost')}/phpmyadmin")
 
     # SSL (Let's Encrypt / Certbot)
@@ -60,10 +60,6 @@ class BaseConfig:
     MYSQL_PORT = int(os.environ.get('MYSQL_PORT', 3306))
     MYSQL_ADMIN_USER = os.environ.get('MYSQL_ADMIN_USER', 'root')
     MYSQL_ADMIN_PASSWORD = os.environ.get('MYSQL_ADMIN_PASSWORD', 'default_mysql_pass')
-
-    # pgAdmin Sync Configuration
-    PGADMIN_DB_PATH = os.environ.get('PGADMIN_DB_PATH', '/var/lib/pgadmin/pgadmin4.db')
-    PGADMIN_SECURITY_PASSWORD_SALT = os.environ.get('PGADMIN_SECURITY_PASSWORD_SALT', 'default-salt-to-change')
 
     # DB Password Encryption
     DB_PASSWORD_ENCRYPTION_KEY = os.environ.get('DB_PASSWORD_ENCRYPTION_KEY', None)

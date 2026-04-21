@@ -116,8 +116,11 @@
                 <form action="{{ url_for('domains.client_add_domain') }}" method="POST">
                     <div class="mb-3">
                         <label class="form-label small text-secondary">DOMAIN NAME</label>
-                        <input type="text" class="form-control bg-dark text-white border-secondary" 
-                               name="domain_name" placeholder="example.com" required>
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary text-secondary small">{{ user.username }}_</span>
+                            <input type="text" class="form-control bg-dark text-white border-secondary" 
+                                   name="domain_name" placeholder="example.com" required>
+                        </div>
                         <div class="form-text small text-secondary">Enter the domain without http:// or www.</div>
                     </div>
                     <button type="submit" class="btn btn-panel btn-success-panel w-100">
