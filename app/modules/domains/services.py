@@ -34,10 +34,16 @@ def add_domain(user_id: int, domain_name: str) -> tuple[bool, str]:
         return False, f"Domain '{domain_name}' is already registered."
 
     web_root = current_app.config.get('WEB_ROOT', '/var/www')
-    document_root = os.path.join(web_root, domain_name, 'public_html')
+    
+    if user.role == "admin":
+        base_path = web_root
+    else:
+        base_path = os.path.join(web_root, user.username)
+
+    document_root = os.path.join(base_path, domain_name, 'public_html')
 
     # Deploy Apache config
-    ok, msg = ApacheService.deploy_domain(domain_name)
+    ok, msg = ApacheService.deploy_domain(domain_name, base_path)
     if not ok:
         return False, f"Apache deployment failed: {msg}"
 
@@ -55,7 +61,7 @@ def add_domain(user_id: int, domain_name: str) -> tuple[bool, str]:
         return True, f"Domain '{domain_name}' added and Apache configured."
     except Exception as e:
         db.session.rollback()
-        ApacheService.undeploy_domain(domain_name)
+        ApacheService.undeploy_domain(domain_name, document_root)
         return False, f"Database error: {str(e)}"
 
 
@@ -64,9 +70,9 @@ def remove_domain(domain_name: str) -> tuple[bool, str]:
     domain = Domain.query.filter_by(domain_name=domain_name).first()
     if not domain:
         return False, f"Domain '{domain_name}' not found."
-
+    base_path = domain.document_root.replace(f"/public_html", "")
     # Remove from Apache
-    ok, msg = ApacheService.undeploy_domain(domain_name)
+    ok, msg = ApacheService.undeploy_domain(domain_name, base_path)
     if not ok:
         logger.warning(f"Apache undeploy warning for {domain_name}: {msg}")
 
@@ -110,8 +116,9 @@ def install_ssl(domain_name: str) -> tuple[bool, str]:
     if domain.ssl_enabled:
         return False, f"SSL is already enabled for '{domain_name}'."
 
-    admin_email = current_app.config.get('SSL_ADMIN_EMAIL', 'admin@example.com')
-    ok, msg = ApacheService.install_ssl(domain_name, admin_email)
+    web_dir = domain.document_root.replace(f"/public_html", "")
+    admin_email = current_app.config.get('SSL_ADMIN_EMAIL', f'{domain.user.email or "info@example.com"}')
+    ok, msg = ApacheService.install_ssl(domain_name, web_dir, admin_email)
     if not ok:
         return False, msg
 

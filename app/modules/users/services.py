@@ -169,7 +169,8 @@ def delete_user(user_id: int) -> tuple[bool, str]:
     from app.services.apache_service import ApacheService
     domains = Domain.query.filter_by(user_id=user_id).all()
     for dom in domains:
-        ApacheService.undeploy_domain(dom.domain_name)
+        web_dir = dom.document_root.replace('/public_html', '')
+        ApacheService.undeploy_domain(dom.domain_name, web_dir)
 
     # Cleanup: deprovision FTP / system user
     if user.role == 'client' and user.system_username:

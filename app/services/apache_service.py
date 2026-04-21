@@ -8,10 +8,10 @@ import os
 import subprocess
 
 
-def run_domain_script(domain: str):
+def run_domain_script(domain: str, web_dir: str):
     try:
         result = subprocess.run(
-            ["/usr/bin/sudo", "/usr/local/bin/add_domain.sh", domain],
+            ["/usr/bin/sudo", "/usr/local/bin/add_domain.sh", domain, web_dir],
             capture_output=True,
             text=True
         )
@@ -20,10 +20,10 @@ def run_domain_script(domain: str):
         return False, str(e)
 
 
-def remove_domain_script(domain: str):
+def remove_domain_script(domain: str, web_dir: str):
     try:
         result = subprocess.run(
-            ["/usr/bin/sudo", "/usr/local/bin/remove_domain.sh", domain],
+            ["/usr/bin/sudo", "/usr/local/bin/remove_domain.sh", domain, web_dir],
             capture_output=True,
             text=True
         )
@@ -32,13 +32,13 @@ def remove_domain_script(domain: str):
         return False, str(e)
 
 
-def install_ssl_script(domain: str) -> tuple[bool, str]:
+def install_ssl_script(domain: str, web_dir: str) -> tuple[bool, str]:
     """
     Run add_ssl.sh to obtain a Let's Encrypt certificate and configure Apache.
     """
     try:
         result = subprocess.run(
-            ["/usr/bin/sudo", "/usr/local/bin/add_ssl.sh", domain],
+            ["/usr/bin/sudo", "/usr/local/bin/add_ssl.sh", domain, web_dir],
             capture_output=True,
             text=True,
             timeout=180,
@@ -102,24 +102,24 @@ class ApacheService:
     """Manages Apache VirtualHost configurations and SSL for client domains."""
 
     @classmethod
-    def deploy_domain(cls, domain: str):
-        ok, msg = run_domain_script(domain)
+    def deploy_domain(cls, domain: str, web_dir: str):
+        ok, msg = run_domain_script(domain, web_dir)
         if not ok:
             return False, msg
         return True, f"Domain deployed:\n{msg}"
 
     @classmethod
-    def undeploy_domain(cls, domain: str) -> tuple[bool, str]:
+    def undeploy_domain(cls, domain: str, web_dir: str) -> tuple[bool, str]:
         """Full removal: disable site → remove config → reload."""
-        ok, msg = remove_domain_script(domain)
+        ok, msg = remove_domain_script(domain, web_dir)
         if not ok:
             return False, msg
         return True, f"Domain '{domain}' undeployed."
 
     @classmethod
-    def install_ssl(cls, domain: str, email: str) -> tuple[bool, str]:
+    def install_ssl(cls, domain: str, web_dir: str, email: str) -> tuple[bool, str]:
         """Obtain and install a Let's Encrypt SSL certificate via add_ssl.sh."""
-        ok, msg = install_ssl_script(domain)
+        ok, msg = install_ssl_script(domain, web_dir)
         if not ok:
             return False, f"SSL installation failed: {msg}"
         return True, f"SSL installed and configured for '{domain}'.\n{msg}"

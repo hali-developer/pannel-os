@@ -65,6 +65,10 @@ def admin_remove_domain(domain_name):
 @log_activity('install_ssl')
 def admin_install_ssl(domain_name):
     """Install SSL certificate for a domain."""
+    domain = domain_svc.get_domain_by_name(domain_name)
+    if not domain or domain.user_id != session['user_id']:
+        flash('Domain not found or access denied.', 'danger')
+        return redirect(url_for('domains.client_domains_page'))
     ok, msg = domain_svc.install_ssl(domain_name)
     flash(msg, 'success' if ok else 'danger')
     return redirect(url_for('domains.admin_domains_page'))
@@ -143,7 +147,7 @@ def client_install_ssl(domain_name):
     if not domain or domain.user_id != session['user_id']:
         flash('Domain not found or access denied.', 'danger')
         return redirect(url_for('domains.client_domains_page'))
-
+    
     ok, msg = domain_svc.install_ssl(domain_name)
     flash(msg, 'success' if ok else 'danger')
     return redirect(url_for('users.client_dashboard'))

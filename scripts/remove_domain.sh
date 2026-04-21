@@ -2,7 +2,7 @@
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 DOMAIN=$1
-BASE_PATH="/var/www"
+BASE_PATH=${2:-/var/www}
 APACHE_CONF="/etc/apache2/sites-available/$DOMAIN.conf"
 
 if [ -z "$DOMAIN" ]; then
