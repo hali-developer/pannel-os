@@ -23,7 +23,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Password</label>
-                        <input type="password" class="form-control" name="password" placeholder="Min 8 characters" required minlength="8">
+                        <input type="password" class="form-control pwd-gen" name="password" placeholder="Min 8 characters" required minlength="8">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Role</label>
@@ -84,7 +84,7 @@
                                     <div style="display:flex;gap:0.35rem;justify-content:flex-end;align-items:center;">
                                         <!-- Change Password -->
                                         <form action="{{ url_for('users.admin_change_password', user_id=user.id) }}" method="POST" style="display:flex;gap:0.25rem;">
-                                            <input type="password" name="password" placeholder="New pwd" required minlength="8"
+                                            <input type="password" class="form-control pwd-gen" name="password" placeholder="New pwd" required minlength="8"
                                                    style="width:90px;padding:0.3rem 0.5rem;font-size:0.75rem;background:rgba(0,0,0,0.25);border:1px solid var(--border-default);color:var(--text-primary);border-radius:4px;">
                                             <button type="submit" class="btn-panel btn-ghost btn-sm-panel" title="Set Password">
                                                 <i class="bi bi-key"></i>

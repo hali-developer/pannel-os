@@ -190,35 +190,16 @@ def main():
     # ── Step 1: System Packages ──
     print("\n[1/7] Installing system packages...")
     run(["apt", "update", "-y"])
-    run([
-        'apt', 'install', '-y',
-        'apache2',
-        'openssl',
-        'postgresql',
-        'postgresql-contrib',
-        'proftpd-mod-mysql', # Changed from postgres to mysql
-        'proftpd-mod-crypto',
-        'libapache2-mod-php',
-        'php-mysql',
-        'php-pgsql',
-        'php-mbstring',
-        'php-zip',
-        'php-gd',
-        'php-json',
-        'php-curl',
-        'mysql-server',
-        'python3-pip',
-        'python3-venv',
-        'python3-dev',
-        'certbot',
-        'python3-certbot-apache',
-        'libmysqlclient-dev', # Added for mysqlclient support
-        'libpq-dev',
-        'build-essential',
-        'curl',
-        'gpg',
-        'debconf-utils'
-    ])
+    req_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'system_requirements.txt')
+    if os.path.exists(req_path):
+        with open(req_path, 'r') as f:
+            packages = [line.strip() for line in f if line.strip() and not line.startswith('#')]
+    else:
+        print(f"  ❌ Required file {req_path} not found.")
+        sys.exit(1)
+
+    install_cmd = ['apt', 'install', '-y'] + packages
+    run(install_cmd)
     print("  ✅ System packages installed.")
 
     # ── Step 1.2: phpMyAdmin (Automatic) ──
@@ -630,247 +611,18 @@ www-data ALL=(ALL) NOPASSWD: \\
 
     print("\n" + "=" * 60)
 
-    with open('/usr/local/bin/add_domain.sh', 'w') as f:
-        f.write("""#!/bin/bash
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
-DOMAIN=$1
-BASE_PATH="/var/www"
-WEBROOT="$BASE_PATH/$DOMAIN/public_html"
-APACHE_CONF="/etc/apache2/sites-available/$DOMAIN.conf"
-
-if [ -z "$DOMAIN" ]; then
-  echo "Domain is required"
-  exit 1
-fi
-
-# Validate domain name (basic check)
-if [[ ! "$DOMAIN" =~ ^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
-  echo "Invalid domain name: $DOMAIN"
-  exit 1
-fi
-
-echo "Creating web directory..."
-mkdir -p "$WEBROOT"
-chown -R www-data:www-data "$BASE_PATH/$DOMAIN"
-chmod -R 755 "$BASE_PATH/$DOMAIN"
-
-# Write a default index page
-cat > "$WEBROOT/index.html" <<HTML
-<!DOCTYPE html>
-<html><head><title>$DOMAIN</title></head>
-<body><h1>$DOMAIN is live!</h1><p>Hosted on VPS Panel v3.0</p></body></html>
-HTML
-
-echo "Creating Apache VirtualHost config..."
-cat > "$APACHE_CONF" <<EOL
-<VirtualHost *:80>
-    ServerName $DOMAIN
-    ServerAlias www.$DOMAIN
-    DocumentRoot $WEBROOT
-
-    <Directory $WEBROOT>
-        Options -Indexes +FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-
-    ErrorLog \${APACHE_LOG_DIR}/${DOMAIN}_error.log
-    CustomLog \${APACHE_LOG_DIR}/${DOMAIN}_access.log combined
-</VirtualHost>
-EOL
-
-echo "Enabling site..."
-a2ensite "$DOMAIN.conf"
-
-echo "Testing Apache config..."
-apache2ctl configtest
-if [ $? -ne 0 ]; then
-  echo "Apache config test failed — rolling back"
-  a2dissite "$DOMAIN.conf"
-  rm -f "$APACHE_CONF"
-  exit 1
-fi
-
-echo "Reloading Apache..."
-systemctl reload apache2
-
-echo "Done ✅ $DOMAIN deployed to $WEBROOT"
-exit 0
-""")
-    run(["chmod", "+x", "/usr/local/bin/add_domain.sh"], check=False)
-
-    with open('/usr/local/bin/remove_domain.sh', 'w') as f:
-        f.write("""#!/bin/bash
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
-DOMAIN=$1
-BASE_PATH="/var/www"
-APACHE_CONF="/etc/apache2/sites-available/$DOMAIN.conf"
-
-if [ -z "$DOMAIN" ]; then
-  echo "Usage: $0 domain.com"
-  exit 1
-fi
-
-echo "Disabling site $DOMAIN..."
-if [ -f "$APACHE_CONF" ]; then
-    a2dissite "$DOMAIN.conf"
-fi
-
-echo "Removing Apache config..."
-rm -f "$APACHE_CONF"
-rm -f "/etc/apache2/sites-enabled/$DOMAIN.conf"
-
-echo "Removing web directory..."
-if [ -d "$BASE_PATH/$DOMAIN" ]; then
-    rm -rf "$BASE_PATH/$DOMAIN"
-fi
-
-echo "Testing Apache config..."
-apache2ctl configtest
-
-echo "Reloading Apache..."
-systemctl reload apache2
-
-echo "Domain $DOMAIN removed successfully ✅"
-exit 0
-""")
-
-    run(["chmod", "+x", "/usr/local/bin/remove_domain.sh"], check=False)
-
-    with open('/usr/local/bin/add_ssl.sh', 'w') as f:
-        f.write("""#!/bin/bash
-# VPS Panel — Script to request Let's Encrypt SSL using Webroot and Configure Apache
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
-DOMAIN=$1
-BASE_PATH="/var/www"
-WEBROOT="$BASE_PATH/$DOMAIN/public_html"
-LE_WEBROOT="/var/www/letsencrypt"
-APACHE_CONF="/etc/apache2/sites-available/$DOMAIN.conf"
-APACHE_SSL_CONF="/etc/apache2/sites-available/${DOMAIN}-ssl.conf"
-
-if [ -z "$DOMAIN" ]; then
-  echo "Usage: ./add_ssl.sh domain.com"
-  exit 1
-fi
-
-if [ ! -d "$WEBROOT" ]; then
-  echo "Error: Directory $WEBROOT does not exist. Add the domain first."
-  exit 1
-fi
-
-echo "Requesting SSL Certificate for $DOMAIN and www.$DOMAIN using webroot..."
-certbot certonly --webroot -w "$LE_WEBROOT" -d "$DOMAIN" -d "www.$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
-
-# Fallback to root domain only if www fails (e.g. DNS not pointing)
-if [ $? -ne 0 ]; then
-  echo "Failed for www-subdomain. Trying just $DOMAIN..."
-  certbot certonly --webroot -w "$LE_WEBROOT" -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email
-  if [ $? -ne 0 ]; then
-    echo "SSL Certificate acquisition completely failed!"
-    exit 1
-  fi
-  # Use single domain for config
-  SERVER_ALIAS=""
-else
-  SERVER_ALIAS="ServerAlias www.$DOMAIN"
-fi
-
-echo "Certificate acquired! Creating Apache SSL VirtualHost..."
-
-cat > "$APACHE_SSL_CONF" <<EOL
-<IfModule mod_ssl.c>
-<VirtualHost *:443>
-    ServerName $DOMAIN
-    $SERVER_ALIAS
-    DocumentRoot $WEBROOT
-
-    SSLEngine on
-    SSLCertificateFile /etc/letsencrypt/live/$DOMAIN/fullchain.pem
-    SSLCertificateKeyFile /etc/letsencrypt/live/$DOMAIN/privkey.pem
-
-    <Directory $WEBROOT>
-        Options -Indexes +FollowSymLinks
-        AllowOverride All
-        Require all granted
-    </Directory>
-
-    ErrorLog \\${APACHE_LOG_DIR}/${DOMAIN}_ssl_error.log
-    CustomLog \\${APACHE_LOG_DIR}/${DOMAIN}_ssl_access.log combined
-</VirtualHost>
-</IfModule>
-EOL
-
-echo "Enabling SSL site and Apache SSL modules..."
-a2enmod ssl rewrite
-a2ensite "${DOMAIN}-ssl.conf"
-
-echo "Adding HTTP -> HTTPS redirect to standard VirtualHost..."
-# Only add if it doesn't already exist
-if ! grep -q "RewriteEngine" "$APACHE_CONF"; then
-  # Insert rewrite rules after ErrorLog
-  sed -i '/ErrorLog/i \\    RewriteEngine On\\n    RewriteCond %{HTTPS} off\\n    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]\\n' "$APACHE_CONF"
-fi
-
-echo "Testing Apache config..."
-apache2ctl configtest
-if [ $? -ne 0 ]; then
-  echo "Apache config test failed — rolling back"
-  a2dissite "${DOMAIN}-ssl.conf"
-  sed -i '/RewriteEngine On/d' "$APACHE_CONF"
-  sed -i '/RewriteCond %{HTTPS} off/d' "$APACHE_CONF"
-  sed -i '/RewriteRule \\^(.\\*)\\$ https/d' "$APACHE_CONF"
-  rm -f "$APACHE_SSL_CONF"
-  systemctl reload apache2
-  exit 1
-fi
-
-echo "Reloading Apache..."
-systemctl reload apache2
-
-echo "Done ✅ SSL configured for $DOMAIN!"
-exit 0
-""")
-    run(["chmod", "+x", "/usr/local/bin/add_ssl.sh"], check=False)
-
-    with open('/usr/local/bin/manage_ssh_user.sh', 'w') as f:
-        f.write("""#!/bin/bash
-# VPS Panel — Manage SSH Users Script
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
-ACTION=$1
-USER=$2
-PARAM=$3
-
-if [ -z "$ACTION" ] || [ -z "$USER" ]; then
-    echo "Usage: $0 [create|delete|passwd] [username] [password|home_dir]"
-    exit 1
-fi
-
-case $ACTION in
-    create)
-        # PARAM is home_dir
-        /usr/sbin/useradd -m -d "$PARAM" -U -s /bin/bash "$USER"
-        exit $?
-        ;;
-    delete)
-        /usr/sbin/userdel "$USER"
-        exit $?
-        ;;
-    passwd)
-        # PARAM is password
-        echo "$USER:$PARAM" | /usr/sbin/chpasswd
-        exit $?
-        ;;
-    *)
-        echo "Invalid action: $ACTION"
-        exit 1
-        ;;
-esac
-""")
-    run(["chmod", "+x", "/usr/local/bin/manage_ssh_user.sh"], check=False)
+    print("\n  Deploying panel bash scripts...")
+    scripts_dir = os.path.join(current_dir, 'scripts')
+    scripts_to_deploy = ['add_domain.sh', 'remove_domain.sh', 'add_ssl.sh', 'manage_ssh_user.sh']
+    for script_name in scripts_to_deploy:
+        src = os.path.join(scripts_dir, script_name)
+        dest = f'/usr/local/bin/{script_name}'
+        if os.path.exists(src):
+            shutil.copy2(src, dest)
+            run(["chmod", "+x", dest], check=False)
+            print(f"  ✅ Deployed {script_name}")
+        else:
+            print(f"  ❌ Missing script: {src}")
 
     # Create systemd service for Gunicorn after all shell scripts are written
     gunicorn_path = os.path.join(venv_path, 'bin', 'gunicorn')

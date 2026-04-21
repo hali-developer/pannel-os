@@ -33,7 +33,55 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Panel JS -->
-    <script src="/static/js/app.js"></script>
+    <!-- Panel JS -->
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('input.pwd-gen').forEach(input => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'input-group';
+            input.parentNode.insertBefore(wrapper, input);
+            wrapper.appendChild(input);
+            
+            const genBtn = document.createElement('button');
+            genBtn.type = 'button';
+            genBtn.className = 'btn btn-outline-secondary border-secondary bg-dark text-secondary';
+            genBtn.innerHTML = '<i class="bi bi-dice-5"></i>';
+            genBtn.title = 'Generate Random Password';
+            
+            const eyeBtn = document.createElement('button');
+            eyeBtn.type = 'button';
+            eyeBtn.className = 'btn btn-outline-secondary border-secondary bg-dark text-secondary';
+            eyeBtn.innerHTML = '<i class="bi bi-eye"></i>';
+            eyeBtn.title = 'View Password';
+
+            wrapper.appendChild(genBtn);
+            wrapper.appendChild(eyeBtn);
+
+            genBtn.addEventListener('click', () => {
+                const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
+                let pwd = "";
+                const array = new Uint32Array(16);
+                window.crypto.getRandomValues(array);
+                for (let i = 0; i < array.length; i++) {
+                    pwd += chars[array[i] % chars.length];
+                }
+                input.value = pwd;
+                input.type = 'text';
+                eyeBtn.innerHTML = '<i class="bi bi-eye-slash text-white"></i>';
+            });
+
+            eyeBtn.addEventListener('click', () => {
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    eyeBtn.innerHTML = '<i class="bi bi-eye-slash text-white"></i>';
+                } else {
+                    input.type = 'password';
+                    eyeBtn.innerHTML = '<i class="bi bi-eye"></i>';
+                }
+            });
+        });
+    });
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

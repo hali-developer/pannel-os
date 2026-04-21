@@ -93,16 +93,38 @@
             <div class="card-body p-4">
                 <h6 class="text-white mb-3"><i class="bi bi-info-circle me-2 text-success"></i> How to Connect</h6>
                 <p class="small text-secondary mb-3">
-                    Point your domain's <strong class="text-white">A record</strong> to your server's public IP address before adding it here.
+                    Before provisioning, configure your domain's DNS provider with the following records to point traffic to this server:
                 </p>
-                <div class="bg-dark rounded p-3 mb-0 border border-secondary border-opacity-25">
-                    <div class="small text-secondary text-uppercase mb-1 tracking-wider">Server IP Address</div>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <code class="h6 text-success mb-0" id="serverIp">{{ base_url.replace('http://','').replace('https://','').split(':')[0] }}</code>
-                        <button class="btn btn-link btn-sm text-secondary p-0" onclick="copyValue('serverIp')">
-                            <i class="bi bi-clipboard"></i>
-                        </button>
-                    </div>
+                
+                <div class="table-responsive bg-dark rounded border border-secondary border-opacity-25 mb-0">
+                    <table class="table table-sm table-borderless table-dark align-middle mb-0">
+                        <thead class="small text-secondary" style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <tr>
+                                <th class="ps-3 fw-normal">Type</th>
+                                <th class="fw-normal">Host</th>
+                                <th class="pe-3 fw-normal">Value</th>
+                            </tr>
+                        </thead>
+                        <tbody class="small">
+                            <tr>
+                                <td class="ps-3"><span class="badge bg-secondary bg-opacity-25 text-white">A</span></td>
+                                <td><code class="text-white">@</code></td>
+                                <td class="pe-3">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <code class="text-success" id="serverIp">{{ base_url.replace('http://','').replace('https://','').split(':')[0] }}</code>
+                                        <button class="btn btn-link btn-sm text-secondary p-0 ms-auto" onclick="copyValue('serverIp')" title="Copy IP">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="ps-3"><span class="badge bg-secondary bg-opacity-25 text-white">CNAME</span></td>
+                                <td><code class="text-white">www</code></td>
+                                <td class="pe-3"><code class="text-secondary">@</code> <span class="text-muted ms-1" style="font-size: 0.7rem;">(or domain)</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
