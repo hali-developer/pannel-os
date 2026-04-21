@@ -40,6 +40,9 @@
         <a href="{{ url_for('domains.admin_domains_page') }}" class="nav-link">
             <i class="bi bi-globe2"></i> Domains
         </a>
+        <a href="{{ url_for('mail.admin_mail_page') }}" class="nav-link">
+            <i class="bi bi-envelope"></i> Mailboxes
+        </a>
 
         <div class="nav-section">Monitoring</div>
         <a href="{{ url_for('users.admin_activity_log') }}" class="nav-link">
@@ -52,6 +55,9 @@
         </a>
         <a href="{{ url_for('domains.client_domains_page') }}" class="nav-link">
             <i class="bi bi-globe2"></i> Domains
+        </a>
+        <a href="{{ url_for('mail.client_mail_page') }}" class="nav-link">
+            <i class="bi bi-envelope"></i> Mailboxes
         </a>
         <a href="{{ url_for('database.client_databases_page') }}" class="nav-link">
             <i class="bi bi-database"></i> Databases

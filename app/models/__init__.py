@@ -10,8 +10,9 @@ from .database import ClientDatabase
 from .db_user import DbUser
 from .db_user_permission import DbUserPermission
 from .activity_log import ActivityLog
+from .email_account import EmailAccount
 
 __all__ = [
     'User', 'Domain', 'FTPAccount', 'ClientDatabase',
-    'DbUser', 'DbUserPermission', 'ActivityLog',
+    'DbUser', 'DbUserPermission', 'ActivityLog', 'EmailAccount',
 ]

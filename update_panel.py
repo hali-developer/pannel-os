@@ -73,7 +73,7 @@ def main():
     # ── 4. Bash Scripts Update ──
     print("\n[4/5] Updating panel automation bash scripts...")
     scripts_dir = os.path.join(panel_dir, 'scripts')
-    scripts_to_deploy = ['add_domain.sh', 'remove_domain.sh', 'add_ssl.sh', 'manage_ssh_user.sh']
+    scripts_to_deploy = ['add_domain.sh', 'remove_domain.sh', 'add_ssl.sh', 'manage_ssh_user.sh', 'setup_mail.sh']
     for script_name in scripts_to_deploy:
         src = os.path.join(scripts_dir, script_name)
         dest = f'/usr/local/bin/{script_name}'

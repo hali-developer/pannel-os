@@ -28,3 +28,9 @@ gpg
 debconf-utils
 nodejs
 npm
+postfix
+postfix-mysql
+dovecot-imapd
+dovecot-pop3d
+dovecot-mysql
+dovecot-lmtpd

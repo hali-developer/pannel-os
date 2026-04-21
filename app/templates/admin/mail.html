@@ -1,0 +1,126 @@
+{% extends 'panel_layout.html' %}
+
+{% block title %}Global Mailboxes — VPS Panel{% endblock %}
+{% block page_title %}Mail <span>/ Global Accounts</span>{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+    <!-- Add Mailbox -->
+    <div class="col-xl-4">
+        <div class="panel-card">
+            <div class="card-header">
+                <h5><i class="bi bi-envelope-plus"></i> Create Mailbox</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('mail.admin_add_mailbox') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Owner</label>
+                        <select class="form-select" name="user_id" required>
+                            <option value="">Select user...</option>
+                            {% for u in users %}
+                            <option value="{{ u.id }}">{{ u.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Domain</label>
+                        <select class="form-select" name="domain_id" required>
+                            <option value="">Select domain...</option>
+                            {% for d in domains %}
+                            <option value="{{ d.id }}">{{ d.domain_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email User</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" name="email_user" placeholder="e.g. info" required>
+                            <span class="input-group-text">@domain.com</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control pwd-gen" name="password" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-panel btn-success-panel w-100">
+                        <i class="bi bi-plus-lg"></i> Create Mailbox
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Mail Server Info -->
+        <div class="panel-card mt-3" style="border:1px solid rgba(139,92,246,0.25);background:rgba(139,92,246,0.04);">
+            <div class="card-body">
+                <h6 style="font-size:0.85rem;margin-bottom:0.75rem;color:#a78bfa;">
+                    <i class="bi bi-server"></i> Mail Server Configuration
+                </h6>
+                <div class="small" style="color:var(--text-secondary);line-height:1.6;">
+                    <div class="mb-2"><strong>IMAP/POP3:</strong> mail.yourdomain.com (Port 993/995)</div>
+                    <div class="mb-2"><strong>SMTP:</strong> mail.yourdomain.com (Port 465/587)</div>
+                    <div style="font-size:0.72rem;background:rgba(139,92,246,0.1);padding:0.5rem;border-radius:6px;">
+                        Note: Ensure SSL is active and DNS points to this server.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mailboxes Table -->
+    <div class="col-xl-8">
+        <div class="panel-card">
+            <div class="card-header">
+                <h5><i class="bi bi-envelope"></i> Active Mailboxes</h5>
+                <span class="badge-panel badge-active">{{ mailboxes | length }} accounts</span>
+            </div>
+            <div class="card-body p-0">
+                {% if mailboxes %}
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Email Address</th>
+                                <th>Owner</th>
+                                <th>Quota</th>
+                                <th>Created</th>
+                                <th class="actions-cell">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for mb in mailboxes %}
+                            <tr>
+                                <td>
+                                    <div style="display:flex;align-items:center;gap:0.5rem;">
+                                        <i class="bi bi-envelope-at" style="color:#a78bfa;"></i>
+                                        <span style="font-weight:600;">{{ mb.email_address }}</span>
+                                    </div>
+                                </td>
+                                <td>{{ mb.owner.username if mb.owner else '—' }}</td>
+                                <td>{{ mb.quota_mb }} MB</td>
+                                <td style="font-size:0.78rem;">{{ mb.created_at.strftime('%Y-%m-%d') if mb.created_at else '—' }}</td>
+                                <td class="actions-cell">
+                                    <form action="{{ url_for('mail.admin_delete_mailbox', account_id=mb.id) }}" method="POST" style="display:inline;">
+                                        <button type="submit" class="btn-panel btn-danger-panel btn-sm-panel"
+                                                data-confirm="Permenantly delete mailbox '{{ mb.email_address }}'?" title="Delete">
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-mailbox"></i>
+                    <p>No mailboxes created yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

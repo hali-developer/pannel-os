@@ -51,6 +51,7 @@ sudo python3 setup_server.py
 *   **Database Initializations:** Boots the root MySQL `panel_db` database, establishing the foundational schemas the web app needs to run.
 *   **Transfers Automation Scripts:** Moves the core networking shell scripts (`scripts/*.sh`) securely to `/usr/local/bin` and assigns `www-data` NOPASSWD sudo access exclusively over them.
 *   **Launches the App:** Migrates the application layer into `/var/h-panel` and registers `vps-panel.service` with `systemd` to keep the dashboard permanently online on Port 8800.
+*   **Mail Infrastructure:** Prepares the system for Postfix/Dovecot integration; provides automated mapping to the internal database for virtual mailbox isolation.
 
 Upon completion, the terminal will print out your new Panel URL, your admin login credentials (save these!), and links to Adminer/phpMyAdmin/pgAdmin.
 

@@ -68,6 +68,7 @@ def _register_blueprints(app):
     from .modules.database.routes import database_bp
     from .modules.db_users.routes import db_users_bp
     from .modules.domains.routes import domains_bp
+    from .modules.mail.routes import mail_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(users_bp)
@@ -75,6 +76,7 @@ def _register_blueprints(app):
     app.register_blueprint(db_users_bp)
     app.register_blueprint(ftp_bp)
     app.register_blueprint(domains_bp)
+    app.register_blueprint(mail_bp)
 
 
 def _setup_logging(app):

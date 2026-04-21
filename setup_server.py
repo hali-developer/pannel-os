@@ -677,6 +677,9 @@ WantedBy=multi-user.target
     - MySQL-backed authentication
     - FTPS enabled with TLS
     - PASSIVE PORTS: 40000-50000
+
+  MAIL SERVER (OPTIONAL):
+    Run 'sudo ./scripts/setup_mail.sh' to finalize Postfix/Dovecot config.
 """)
 
 
